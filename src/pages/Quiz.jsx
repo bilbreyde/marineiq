@@ -139,7 +139,7 @@ export default function Quiz() {
 
       {result && (
         <div style={{
-          padding: '14px 16px', borderRadius: '12px', marginBottom: '16px',
+          padding: '14px 16px', marginBottom: '16px',
           background: result.correct ? '#EAF3DE' : '#FCEBEB',
           borderLeft: `4px solid ${result.correct ? '#3B6D11' : '#A32D2D'}`,
           borderRadius: '0 12px 12px 0',
