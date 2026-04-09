@@ -31,11 +31,7 @@ const data = await apiPost('logbook', { action: 'getTrips', userId })
     if (!form.departure || !form.destination) return
     setSaving(true)
     try {
-      await fetch(`${API}/logbook`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'logTrip', userId, ...form,
+      await apiPost('logbook', { action: 'logTrip', userId, ...form, ... })
           hoursUnderway: parseFloat(form.hoursUnderway) || 0,
           hoursMotoring: parseFloat(form.hoursMotoring) || 0,
           nauticalMiles: parseFloat(form.nauticalMiles) || 0,
