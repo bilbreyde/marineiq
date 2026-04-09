@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-
-const API = 'https://func-marineiq-prod.azurewebsites.net/api'
+import { apiPost } from '../api'
 
 const CATEGORIES = ['Engine', 'Electrical', 'Rigging', 'Hull', 'Fuel system', 'Plumbing', 'Safety gear', 'Navigation', 'Other']
 
