@@ -110,3 +110,76 @@ export default function Logbook({ userId }) {
             </div>
             <div>
               <div style={{ fontSize: '11px', color: '#888780', marginBottom: '4px' }}>Hours underway</div>
+<input type="number" step="0.1" style={inputStyle} placeholder="0.0" value={form.hoursUnderway} onChange={e => setForm(p => ({ ...p, hoursUnderway: e.target.value }))} />
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: '#888780', marginBottom: '4px' }}>Hours motoring</div>
+                <input type="number" step="0.1" style={inputStyle} placeholder="0.0" value={form.hoursMotoring} onChange={e => setForm(p => ({ ...p, hoursMotoring: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', color: '#888780', marginBottom: '4px' }}>Nautical miles</div>
+              <input type="number" step="0.1" style={inputStyle} placeholder="0" value={form.nauticalMiles} onChange={e => setForm(p => ({ ...p, nauticalMiles: e.target.value }))} />
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', color: '#888780', marginBottom: '4px' }}>Conditions</div>
+              <input style={inputStyle} placeholder="ESE 15kts, 2ft seas..." value={form.conditions} onChange={e => setForm(p => ({ ...p, conditions: e.target.value }))} />
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', color: '#888780', marginBottom: '4px' }}>Notes</div>
+              <textarea style={{ ...inputStyle, minHeight: '72px', resize: 'vertical' }} placeholder="Anything worth remembering..." value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', color: '#888780', marginBottom: '4px' }}>Certification category</div>
+              <select style={inputStyle} value={form.certCategory} onChange={e => setForm(p => ({ ...p, certCategory: e.target.value }))}>
+                <option value="">None</option>
+                <option value="ASA-101">ASA 101</option>
+                <option value="ASA-103">ASA 103</option>
+                <option value="ASA-104">ASA 104</option>
+                <option value="ASA-106">ASA 106</option>
+                <option value="USCG">USCG</option>
+              </select>
+            </div>
+            <button onClick={saveTrip} disabled={saving} style={{
+              padding: '12px', borderRadius: '10px', background: '#0c2a4a',
+              color: '#fff', border: 'none', fontSize: '14px', fontWeight: '500',
+              opacity: saving ? 0.7 : 1
+            }}>
+              {saving ? 'Logging entry...' : 'Log this trip'}
+            </button>
+          </div>
+        )}
+
+        <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '32px', color: '#888780', fontSize: '13px' }}>Loading logbook...</div>
+          ) : trips.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px', color: '#888780', fontSize: '13px', fontStyle: 'italic' }}>
+              No trips logged yet. The tide's waiting, sailor.
+            </div>
+          ) : trips.map(trip => (
+            <div key={trip.id} style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: '12px', padding: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#E6F1FB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>⛵</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '14px', fontWeight: '500' }}>{trip.departure} → {trip.destination}</div>
+                  <div style={{ fontSize: '11px', color: '#888780', marginTop: '2px' }}>{new Date(trip.date).toLocaleDateString()} · {trip.crew} crew</div>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                    {[
+                      { label: `${trip.hoursUnderway}h underway`, color: '#E6F1FB', text: '#0C447C' },
+                      { label: `${trip.nauticalMiles}nm`, color: '#EAF3DE', text: '#27500A' },
+                      trip.certCategory && { label: trip.certCategory, color: '#FAEEDA', text: '#633806' }
+                    ].filter(Boolean).map((tag, i) => (
+                      <span key={i} style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: tag.color, color: tag.text, fontWeight: '500' }}>{tag.label}</span>
+                    ))}
+                  </div>
+                  {trip.conditions && <div style={{ fontSize: '11px', color: '#5f5e5a', marginTop: '6px' }}>{trip.conditions}</div>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
