@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-
-const API = 'https://func-marineiq-prod.azurewebsites.net/api'
+import { apiPost } from '../api'
 
 export default function Quiz() {
   const [questions, setQuestions] = useState([])
@@ -16,22 +15,14 @@ export default function Quiz() {
   async function loadQuestions() {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/quiz`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'get', count: 5 })
-      })
-      const data = await res.json()
+      const data = await apiPost('quiz', { action: 'get', count: 5 })
       setQuestions(data.questions || [])
       setCurrent(0)
       setSelected(null)
       setResult(null)
       setScore({ correct: 0, total: 0 })
-    } catch {
-      setQuestions([])
-    } finally {
-      setLoading(false)
-    }
+    } catch (e) {}
+    finally { setLoading(false) }
   }
 
   async function grade(answerIndex) {
@@ -39,15 +30,14 @@ export default function Quiz() {
     setSelected(answerIndex)
     setGrading(true)
     try {
-      const res = await fetch(`${API}/quiz`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'grade', questionId: questions[current].id, selectedAnswer: answerIndex })
+      const data = await apiPost('quiz', {
+        action: 'grade',
+        questionId: questions[current].id,
+        selectedAnswer: answerIndex
       })
-      const data = await res.json()
       setResult(data)
       setScore(s => ({ correct: s.correct + (data.correct ? 1 : 0), total: s.total + 1 }))
-    } catch {
+    } catch (e) {
       setResult({ correct: false, explanation: 'Could not reach the Captain. Try again.' })
     } finally {
       setGrading(false)
@@ -105,11 +95,11 @@ export default function Quiz() {
       </div>
 
       <div style={{ height: '4px', background: '#e0e0e0', borderRadius: '2px', marginBottom: '24px' }}>
-        <div style={{ height: '100%', width: `${((current) / questions.length) * 100}%`, background: '#185FA5', borderRadius: '2px', transition: 'width 0.3s' }} />
+        <div style={{ height: '100%', width: `${(current / questions.length) * 100}%`, background: '#185FA5', borderRadius: '2px', transition: 'width 0.3s' }} />
       </div>
 
       <div style={{ fontSize: '11px', fontWeight: '500', color: '#888780', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        {q.category} · {q.difficulty}
+        {q.category} &middot; {q.difficulty}
       </div>
 
       <div style={{ fontSize: '16px', fontWeight: '500', lineHeight: '1.5', marginBottom: '24px', color: '#1a1a1a' }}>
@@ -156,7 +146,7 @@ export default function Quiz() {
           background: '#0c2a4a', color: '#fff', border: 'none',
           fontSize: '14px', fontWeight: '500'
         }}>
-          {current + 1 < questions.length ? 'Next question →' : 'See results'}
+          {current + 1 < questions.length ? 'Next question' : 'See results'}
         </button>
       )}
     </div>
