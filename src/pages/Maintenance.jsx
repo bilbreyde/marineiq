@@ -37,17 +37,19 @@ const data = await apiPost('logbook', { action: 'getMaintenance', userId })
     if (!form.description) return
     setSaving(true)
     try {
-      await fetch(`${API}/logbook`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'logMaintenance', userId, ...form,
-          engineHoursAtService: parseFloat(form.engineHoursAtService) || 0,
-          nextDueEngineHours: parseFloat(form.nextDueEngineHours) || null,
-          cost: parseFloat(form.cost) || 0,
-          laborHours: parseFloat(form.laborHours) || 0
-        })
-      })
+  await apiPost('logbook', {
+    action: 'logMaintenance',
+    userId,
+    description: form.description,
+    category: form.category,
+    date: form.date,
+    technician: form.technician,
+    notes: form.notes,
+    engineHoursAtService: parseFloat(form.engineHoursAtService) || 0,
+    nextDueEngineHours: parseFloat(form.nextDueEngineHours) || null,
+    cost: parseFloat(form.cost) || 0,
+    laborHours: parseFloat(form.laborHours) || 0
+})
       setShowForm(false)
       setForm({
         description: '', category: 'Engine',
