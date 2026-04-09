@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const API = 'https://func-marineiq-prod.azurewebsites.net/api'
+import { apiPost } from '../api'
 
 export default function Logbook({ userId }) {
   const [trips, setTrips] = useState([])
