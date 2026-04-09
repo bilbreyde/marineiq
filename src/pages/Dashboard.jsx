@@ -1,19 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-
-const API = 'https://func-marineiq-prod.azurewebsites.net/api'
+import { apiPost } from '../api'
 
 export default function Dashboard({ userId }) {
   const [stats, setStats] = useState(null)
   const navigate = useNavigate()
 
   useEffect(() => {
-    fetch(`${API}/logbook`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'getTrips', userId })
-    })
-      .then(r => r.json())
+    apiPost('logbook', { action: 'getTrips', userId })
       .then(d => setStats(d.stats))
       .catch(() => {})
   }, [userId])
@@ -76,12 +70,7 @@ function RecentActivity({ userId }) {
   const [trips, setTrips] = useState([])
 
   useEffect(() => {
-    fetch(`${API}/logbook`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'getTrips', userId })
-    })
-      .then(r => r.json())
+    apiPost('logbook', { action: 'getTrips', userId })
       .then(d => setTrips(d.trips?.slice(0, 3) || []))
       .catch(() => {})
   }, [userId])
@@ -103,10 +92,10 @@ function RecentActivity({ userId }) {
           <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#E6F1FB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>⛵</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '13px', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {trip.departure} → {trip.destination}
+              {trip.departure} to {trip.destination}
             </div>
             <div style={{ fontSize: '11px', color: '#888780', marginTop: '2px' }}>
-              {new Date(trip.date).toLocaleDateString()} · {trip.hoursUnderway}h · {trip.nauticalMiles}nm
+              {new Date(trip.date).toLocaleDateString()} &middot; {trip.hoursUnderway}h &middot; {trip.nauticalMiles}nm
             </div>
           </div>
         </div>
