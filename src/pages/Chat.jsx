@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
 import { apiPost } from '../api'
 
-const WELCOME = {
-  role: 'assistant',
-  content: "Ahoy. Name's Captain Cole — forty years on the water, Atlantic crossings, Gulf squalls, more close calls than I care to count. I'm here to make sure you know your vessel, your rules, and your limits before the sea tests 'em. What's on your mind, sailor?"
-}
+export default function Chat({ userId, profile }) {
+  const welcome = {
+    role: 'assistant',
+    content: profile?.vesselName
+      ? `Ahoy. Name's Captain Cole — forty years on the water, Atlantic crossings, Gulf squalls, more close calls than I care to count. I see you're sailing ${profile.vesselName}${profile.homePort ? ` out of ${profile.homePort}` : ''}. Good to know my crew. What's on your mind, sailor?`
+      : "Ahoy. Name's Captain Cole — forty years on the water, Atlantic crossings, Gulf squalls, more close calls than I care to count. I'm here to make sure you know your vessel, your rules, and your limits before the sea tests 'em. What's on your mind, sailor?"
+  }
 
-export default function Chat({ userId }) {
-  const [messages, setMessages] = useState([WELCOME])
+  const [messages, setMessages] = useState([welcome])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef(null)
@@ -15,6 +17,20 @@ export default function Chat({ userId }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  function buildVesselContext() {
+    if (!profile) return ''
+    const parts = []
+    if (profile.vesselName) parts.push(`Vessel: ${profile.vesselName}`)
+    if (profile.vesselType) parts.push(`Type: ${profile.vesselType}`)
+    if (profile.make && profile.model) parts.push(`${profile.make} ${profile.model} ${profile.year || ''}`.trim())
+    if (profile.homePort) parts.push(`Home port: ${profile.homePort}`)
+    if (profile.lengthFt) parts.push(`LOA: ${profile.lengthFt}ft`)
+    if (profile.draftFt) parts.push(`Draft: ${profile.draftFt}ft`)
+    if (profile.hullSpeed) parts.push(`Hull speed: ${profile.hullSpeed}kts`)
+    if (profile.engine) parts.push(`Engine: ${profile.engine}`)
+    return parts.length ? `\n\n[Sailor's vessel — ${parts.join(', ')}]` : ''
+  }
 
   async function send() {
     if (!input.trim() || loading) return
@@ -25,11 +41,17 @@ export default function Chat({ userId }) {
     setLoading(true)
 
     try {
-      const data = await apiPost('chat', {
-        messages: newMessages
-          .filter(m => m !== WELCOME)
-          .map(m => ({ role: m.role, content: m.content }))
-      })
+      const vesselContext = buildVesselContext()
+      const apiMessages = newMessages
+        .filter(m => m !== welcome)
+        .map((m, i) => {
+          if (i === 0 && vesselContext) {
+            return { role: m.role, content: m.content + vesselContext }
+          }
+          return { role: m.role, content: m.content }
+        })
+
+      const data = await apiPost('chat', { messages: apiMessages })
       const reply = data.content?.[0]?.text || "Something's wrong with the radio. Try again."
       setMessages(prev => [...prev, { role: 'assistant', content: reply }])
     } catch {
@@ -40,21 +62,18 @@ export default function Chat({ userId }) {
   }
 
   function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      send()
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <div style={{ background: '#0c2a4a', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
         <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#1a3f6b', border: '2px solid #2563a8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
-          🧭
+          &#9822;
         </div>
         <div>
           <div style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>Captain Cole</div>
-          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>40 years at sea · Always watching</div>
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>40 years at sea &middot; Always watching</div>
         </div>
       </div>
 
@@ -103,7 +122,7 @@ export default function Chat({ userId }) {
           background: loading || !input.trim() ? '#ccc' : '#185FA5',
           border: 'none', color: '#fff', fontSize: '16px',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0, alignSelf: 'flex-end'
+          flexShrink: 0, alignSelf: 'flex-end', cursor: 'pointer'
         }}>
           &#10148;
         </button>
