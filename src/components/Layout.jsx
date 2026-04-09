@@ -6,6 +6,7 @@ const navItems = [
   { path: '/quiz', label: 'Train', icon: '📋' },
   { path: '/chat', label: 'Captain', icon: '🧭' },
   { path: '/maintenance', label: 'Maintenance', icon: '🔧' },
+  { path: '/profile', label: 'Profile', icon: '👤' },
 ]
 
 export default function Layout({ children, user, logout }) {
