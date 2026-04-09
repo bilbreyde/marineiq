@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiPost } from '../api'
 
-export default function Dashboard({ userId }) {
+export default function Dashboard({ userId, profile }) {
   const [stats, setStats] = useState(null)
+  const [alerts, setAlerts] = useState([])
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -12,6 +13,14 @@ export default function Dashboard({ userId }) {
       .catch(() => {})
   }, [userId])
 
+  useEffect(() => {
+    if (stats?.totalHoursMotoring) {
+      apiPost('logbook', { action: 'checkAlerts', userId, currentEngineHours: stats.totalHoursMotoring })
+        .then(d => setAlerts(d.alerts || []))
+        .catch(() => {})
+    }
+  }, [stats])
+
   const quickActions = [
     { label: 'Log trip', icon: '⛵', path: '/logbook', color: '#E6F1FB' },
     { label: 'Maintenance', icon: '🔧', path: '/maintenance', color: '#FAEEDA' },
@@ -19,28 +28,44 @@ export default function Dashboard({ userId }) {
     { label: 'Ask Captain', icon: '🧭', path: '/chat', color: '#FCEBEB' },
   ]
 
+  const vesselName = profile?.vesselName || 'My vessel'
+  const vesselSub = [profile?.make, profile?.model, profile?.year].filter(Boolean).join(' ')
+
   return (
     <div>
       <div style={{ background: '#0c2a4a', padding: '20px 16px 24px', color: '#fff' }}>
         <div style={{ fontSize: '11px', opacity: 0.6, marginBottom: '4px' }}>Welcome back, sailor</div>
-        <div style={{ fontSize: '22px', fontWeight: '600' }}>S/V Blue Horizon</div>
+        <div style={{ fontSize: '22px', fontWeight: '600' }}>{vesselName}</div>
+        {vesselSub ? <div style={{ fontSize: '12px', opacity: 0.6, marginTop: '3px' }}>{vesselSub} &middot; {profile?.homePort}</div> : null}
         {stats && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '16px' }}>
             <StatBox label="Sailing hours" value={stats.totalHoursSailing} />
             <StatBox label="Nautical miles" value={stats.totalNauticalMiles} />
             <StatBox label="Trips logged" value={stats.totalTrips} />
-            <StatBox label="Motoring hours" value={stats.totalHoursMotoring} />
+            <StatBox label="Engine hours" value={stats.totalHoursMotoring} />
           </div>
         )}
       </div>
 
+      {alerts.length > 0 && (
+        <div style={{ margin: '12px 16px 0' }}>
+          {alerts.map((alert, i) => (
+            <div key={i} style={{ background: '#FAEEDA', border: '0.5px solid #EF9F27', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', color: '#633806', marginBottom: '8px' }}>
+              {alert.overdue
+                ? `Overdue: ${alert.description} was due at ${alert.dueAt} engine hrs`
+                : `Coming up: ${alert.description} due in ${Math.round(alert.hoursRemaining)} engine hrs`}
+            </div>
+          ))}
+        </div>
+      )}
+
       <div style={{ padding: '16px' }}>
         <div style={{ fontSize: '12px', fontWeight: '500', color: '#888780', marginBottom: '12px' }}>Quick log</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '24px' }}>
           {quickActions.map(a => (
             <button key={a.path} onClick={() => navigate(a.path)} style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
-              background: 'none', border: 'none', padding: '0'
+              background: 'none', border: 'none', padding: '0', cursor: 'pointer'
             }}>
               <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: a.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>
                 {a.icon}
@@ -89,7 +114,9 @@ function RecentActivity({ userId }) {
           borderRadius: '12px', padding: '12px 14px',
           display: 'flex', alignItems: 'center', gap: '12px'
         }}>
-          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#E6F1FB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>⛵</div>
+          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#E6F1FB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>
+            &#9973;
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '13px', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {trip.departure} to {trip.destination}
