@@ -20,12 +20,7 @@ export default function Logbook({ userId }) {
   async function loadTrips() {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/logbook`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'getTrips', userId })
-      })
-      const data = await res.json()
+const data = await apiPost('logbook', { action: 'getTrips', userId })
       setTrips(data.trips || [])
       setStats(data.stats || null)
     } catch (e) {}
