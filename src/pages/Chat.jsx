@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-
-const API = 'https://func-marineiq-prod.azurewebsites.net/api'
+import { apiPost } from '../api'
 
 const WELCOME = {
   role: 'assistant',
@@ -26,15 +25,11 @@ export default function Chat({ userId }) {
     setLoading(true)
 
     try {
-      const res = await fetch(`${API}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: newMessages.filter(m => m.role !== 'assistant' || m !== WELCOME)
-            .map(m => ({ role: m.role, content: m.content }))
-        })
+      const data = await apiPost('chat', {
+        messages: newMessages
+          .filter(m => m !== WELCOME)
+          .map(m => ({ role: m.role, content: m.content }))
       })
-      const data = await res.json()
       const reply = data.content?.[0]?.text || "Something's wrong with the radio. Try again."
       setMessages(prev => [...prev, { role: 'assistant', content: reply }])
     } catch {
@@ -67,13 +62,11 @@ export default function Chat({ userId }) {
         {messages.map((msg, i) => (
           <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
             <div style={{
-              maxWidth: '85%',
-              padding: '10px 14px',
+              maxWidth: '85%', padding: '10px 14px',
               borderRadius: msg.role === 'user' ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
               background: msg.role === 'user' ? '#185FA5' : '#fff',
               color: msg.role === 'user' ? '#fff' : '#1a1a1a',
-              fontSize: '14px',
-              lineHeight: '1.6',
+              fontSize: '14px', lineHeight: '1.6',
               border: msg.role === 'assistant' ? '0.5px solid rgba(0,0,0,0.1)' : 'none',
               whiteSpace: 'pre-wrap'
             }}>
@@ -112,7 +105,7 @@ export default function Chat({ userId }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0, alignSelf: 'flex-end'
         }}>
-          ➤
+          &#10148;
         </button>
       </div>
     </div>
