@@ -27,12 +27,7 @@ export default function Maintenance({ userId }) {
   async function loadEntries() {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/logbook`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'getMaintenance', userId })
-      })
-      const data = await res.json()
+const data = await apiPost('logbook', { action: 'getMaintenance', userId })
       setEntries(data.entries || [])
     } catch (e) {}
     finally { setLoading(false) }
