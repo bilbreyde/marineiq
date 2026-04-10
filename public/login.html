@@ -108,7 +108,6 @@
           body: JSON.stringify({ action: 'login', email, password })
         })
         const data = await res.json()
-        alert('Response: ' + JSON.stringify(data))
         if (res.ok && data.userId) {
           localStorage.setItem('marineiq_token', data.token)
           window.location.href = '/'
@@ -118,7 +117,6 @@
           btn.textContent = 'Sign in'
         }
       } catch (e) {
-        alert('Error: ' + e.message)
         showError('Connection error. Please try again.')
         btn.disabled = false
         btn.textContent = 'Sign in'
