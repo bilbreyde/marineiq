@@ -1,20 +1,7 @@
 {
-  "auth": {
-    "identityProviders": {
-      "emailPassword": {
-        "registration": {
-          "allowGuests": false
-        }
-      }
-    }
-  },
   "routes": [
     {
-      "route": "/.auth/*",
-      "allowedRoles": ["anonymous"]
-    },
-    {
-      "route": "/api/*",
+      "route": "/login.html",
       "allowedRoles": ["anonymous"]
     },
     {
@@ -22,20 +9,14 @@
       "allowedRoles": ["anonymous"]
     },
     {
-      "route": "/login.html",
+      "route": "/*.{js,css,png,jpg,ico,svg,json}",
       "allowedRoles": ["anonymous"]
     },
     {
       "route": "/*",
-      "allowedRoles": ["authenticated"]
+      "allowedRoles": ["anonymous"]
     }
   ],
-  "responseOverrides": {
-    "401": {
-      "redirect": "/login.html",
-      "statusCode": 302
-    }
-  },
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": ["/assets/*", "/*.{js,css,png,jpg,ico,svg,json,html}"]
