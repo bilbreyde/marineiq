@@ -105,19 +105,20 @@
         const res = await fetch(`${API}/auth?code=${KEY}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
           body: JSON.stringify({ action: 'login', email, password })
         })
         const data = await res.json()
-       if (res.ok && data.userId) {
-        localStorage.setItem('marineiq_token', data.token)
-        window.location.href = '/'
-      } else {
+        alert('Response: ' + JSON.stringify(data))
+        if (res.ok && data.userId) {
+          localStorage.setItem('marineiq_token', data.token)
+          window.location.href = '/'
+        } else {
           showError(data.error || 'Invalid email or password.')
           btn.disabled = false
           btn.textContent = 'Sign in'
         }
       } catch (e) {
+        alert('Error: ' + e.message)
         showError('Connection error. Please try again.')
         btn.disabled = false
         btn.textContent = 'Sign in'
