@@ -12,25 +12,25 @@ export function useAuth() {
     verify()
   }, [])
 
-  async function verify() {
-    const token = localStorage.getItem(TOKEN_KEY)
-    if (!token) { setLoading(false); return }
-    try {
-      const res = await fetch(`${API}/auth?code=${KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ action: 'verify' })
-      })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.userId) setUser(data)
-        else localStorage.removeItem(TOKEN_KEY)
-      } else {
-        localStorage.removeItem(TOKEN_KEY)
-      }
-    } catch (e) {}
-    finally { setLoading(false) }
-  }
+async function verify() {
+  const token = localStorage.getItem(TOKEN_KEY)
+  if (!token) { setLoading(false); return }
+  try {
+    const res = await fetch(`${API}/auth?code=${KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify', token })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.userId) setUser(data)
+      else localStorage.removeItem(TOKEN_KEY)
+    } else {
+      localStorage.removeItem(TOKEN_KEY)
+    }
+  } catch (e) {}
+  finally { setLoading(false) }
+}
 
   async function login(email, password) {
     const res = await fetch(`${API}/auth?code=${KEY}`, {
