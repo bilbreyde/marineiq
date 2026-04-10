@@ -13,18 +13,19 @@
     .title { font-size: 24px; font-weight: 600; }
     .subtitle { font-size: 13px; opacity: 0.6; margin-top: 6px; }
     .body { padding: 24px 20px; display: flex; flex-direction: column; gap: 12px; }
-    .prompt { font-size: 13px; color: #5f5e5a; text-align: center; }
+    .tabs { display: flex; background: #f5f5f3; border-radius: 8px; padding: 3px; gap: 2px; }
+    .tab { flex: 1; padding: 8px; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; background: transparent; color: #888780; font-family: inherit; }
+    .tab.active { background: #fff; color: #1a1a1a; border: 0.5px solid rgba(0,0,0,0.1); }
     label { font-size: 11px; color: #888780; display: block; margin-bottom: 4px; }
     input { width: 100%; padding: 11px 14px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.15); font-size: 14px; font-family: inherit; outline: none; background: #f5f5f3; }
     input:focus { border-color: #185FA5; background: #fff; }
     .btn { width: 100%; padding: 13px; border-radius: 10px; border: none; background: #0c2a4a; color: #fff; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; }
     .btn:hover { background: #1a3f6b; }
+    .btn:disabled { background: #ccc; cursor: default; }
     .error { font-size: 12px; color: #A32D2D; background: #FCEBEB; padding: 10px 12px; border-radius: 8px; display: none; }
-    .divider { display: flex; align-items: center; gap: 10px; color: #888780; font-size: 12px; }
-    .divider::before, .divider::after { content: ''; flex: 1; height: 0.5px; background: rgba(0,0,0,0.12); }
-    .social-btn { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.15); background: #fff; font-size: 13px; font-weight: 500; color: #1a1a1a; text-decoration: none; }
-    .social-btn:hover { background: #f5f5f3; }
     .terms { font-size: 10px; color: #888780; text-align: center; line-height: 1.5; }
+    .panel { display: none; flex-direction: column; gap: 12px; }
+    .panel.active { display: flex; }
   </style>
 </head>
 <body>
@@ -35,61 +36,124 @@
       <div class="subtitle">Sailor training and logbook companion</div>
     </div>
     <div class="body">
-      <div class="prompt">Sign in to access your logbook</div>
-      <div id="error" class="error">Invalid email or password. Try again.</div>
-      <div>
-        <label>Email address</label>
-        <input type="email" id="email" placeholder="you@example.com" autocomplete="email" />
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('login', this)">Sign in</button>
+        <button class="tab" onclick="switchTab('register', this)">Create account</button>
       </div>
-      <div>
-        <label>Password</label>
-        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+
+      <div id="error" class="error"></div>
+
+      <div id="panel-login" class="panel active">
+        <div>
+          <label>Email address</label>
+          <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')signIn()" />
+        </div>
+        <button class="btn" id="login-btn" onclick="signIn()">Sign in</button>
       </div>
-      <button class="btn" onclick="signIn()">Sign in</button>
-      <div class="divider">or</div>
-      <a href="/.auth/login/google?post_login_redirect_uri=/" class="social-btn">
-        <svg width="18" height="18" viewBox="0 0 24 24" style="flex-shrink:0">
-          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-        </svg>
-        Continue with Google
-      </a>
-      <a href="/.auth/login/github?post_login_redirect_uri=/" class="social-btn">
-        <svg width="18" height="18" viewBox="0 0 24 24" style="flex-shrink:0">
-          <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" fill="#1a1a1a"/>
-        </svg>
-        Continue with GitHub
-      </a>
+
+      <div id="panel-register" class="panel">
+        <div>
+          <label>Your name</label>
+          <input type="text" id="reg-name" placeholder="Don Breyde" autocomplete="name" />
+        </div>
+        <div>
+          <label>Email address</label>
+          <input type="email" id="reg-email" placeholder="you@example.com" autocomplete="email" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input type="password" id="reg-password" placeholder="Min 8 characters" autocomplete="new-password" onkeydown="if(event.key==='Enter')signUp()" />
+        </div>
+        <button class="btn" id="reg-btn" onclick="signUp()">Create account</button>
+      </div>
+
       <div class="terms">Your logbook data is private and never shared.</div>
     </div>
   </div>
+
   <script>
+    const API = 'https://func-marineiq-prod.azurewebsites.net/api'
+    const KEY = 'CQN6FRAKtdEEaAZMvSCZUuxkffGEhLfPZnKqh_XtyzXAAzFuMcVZ6Q=='
+
+    function switchTab(tab, el) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'))
+      el.classList.add('active')
+      document.getElementById('panel-' + tab).classList.add('active')
+      document.getElementById('error').style.display = 'none'
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error')
+      el.textContent = msg
+      el.style.display = 'block'
+    }
+
     async function signIn() {
-      const email = document.getElementById('email').value.trim()
-      const password = document.getElementById('password').value
-      const error = document.getElementById('error')
-      error.style.display = 'none'
-      if (!email || !password) { error.style.display = 'block'; error.textContent = 'Please enter your email and password.'; return }
+      const email = document.getElementById('login-email').value.trim()
+      const password = document.getElementById('login-password').value
+      document.getElementById('error').style.display = 'none'
+      if (!email || !password) { showError('Please enter your email and password.'); return }
+      const btn = document.getElementById('login-btn')
+      btn.disabled = true
+      btn.textContent = 'Signing in...'
       try {
-        const res = await fetch('/.auth/login/email', {
+        const res = await fetch(`${API}/auth?code=${KEY}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+          credentials: 'include',
+          body: JSON.stringify({ action: 'login', email, password })
         })
-        if (res.ok) {
+        const data = await res.json()
+        if (res.ok && data.userId) {
           window.location.href = '/'
         } else {
-          error.style.display = 'block'
-          error.textContent = 'Invalid email or password. Try again.'
+          showError(data.error || 'Invalid email or password.')
+          btn.disabled = false
+          btn.textContent = 'Sign in'
         }
       } catch (e) {
-        error.style.display = 'block'
-        error.textContent = 'Connection error. Please try again.'
+        showError('Connection error. Please try again.')
+        btn.disabled = false
+        btn.textContent = 'Sign in'
       }
     }
-    document.addEventListener('keydown', e => { if (e.key === 'Enter') signIn() })
+
+    async function signUp() {
+      const name = document.getElementById('reg-name').value.trim()
+      const email = document.getElementById('reg-email').value.trim()
+      const password = document.getElementById('reg-password').value
+      document.getElementById('error').style.display = 'none'
+      if (!email || !password) { showError('Please enter your email and password.'); return }
+      if (password.length < 8) { showError('Password must be at least 8 characters.'); return }
+      const btn = document.getElementById('reg-btn')
+      btn.disabled = true
+      btn.textContent = 'Creating account...'
+      try {
+        const res = await fetch(`${API}/auth?code=${KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ action: 'register', email, password, name })
+        })
+        const data = await res.json()
+        if (res.ok && data.userId) {
+          window.location.href = '/'
+        } else {
+          showError(data.error || 'Could not create account.')
+          btn.disabled = false
+          btn.textContent = 'Create account'
+        }
+      } catch (e) {
+        showError('Connection error. Please try again.')
+        btn.disabled = false
+        btn.textContent = 'Create account'
+      }
+    }
   </script>
 </body>
 </html>
