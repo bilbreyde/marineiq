@@ -1,7 +1,25 @@
 import { useState, useEffect, useRef } from 'react'
 import { apiPost, uploadPhoto } from '../api'
+import Parts from './Parts'
 
 const CATEGORIES = ['Engine', 'Electrical', 'Rigging', 'Hull', 'Fuel system', 'Plumbing', 'Safety gear', 'Navigation', 'Other']
+
+function TabBar({ tab, setTab }) {
+  return (
+    <div style={{ display: 'flex', gap: '4px' }}>
+      {[{ id: 'log', label: 'Log' }, { id: 'parts', label: 'Parts' }].map(t => (
+        <button key={t.id} onClick={() => setTab(t.id)} style={{
+          padding: '7px 16px', borderRadius: '8px 8px 0 0', fontSize: '13px', fontWeight: '500',
+          border: 'none', cursor: 'pointer',
+          background: tab === t.id ? '#fff' : 'rgba(255,255,255,0.12)',
+          color: tab === t.id ? '#0c2a4a' : 'rgba(255,255,255,0.7)'
+        }}>
+          {t.label}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 const catColors = {
   Engine: { bg: '#FAEEDA', text: '#633806' },
@@ -11,6 +29,7 @@ const catColors = {
 }
 
 export default function Maintenance({ userId }) {
+  const [tab, setTab] = useState('log')
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -87,16 +106,29 @@ export default function Maintenance({ userId }) {
     background: '#f5f5f3', fontFamily: 'inherit', outline: 'none'
   }
 
+  if (tab === 'parts') return (
+    <div>
+      <div style={{ background: '#0c2a4a', padding: '16px 16px 0' }}>
+        <div style={{ color: '#fff', fontSize: '17px', fontWeight: '600', marginBottom: '12px' }}>Maintenance</div>
+        <TabBar tab={tab} setTab={setTab} />
+      </div>
+      <Parts userId={userId} />
+    </div>
+  )
+
   return (
     <div>
-      <div style={{ background: '#0c2a4a', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ color: '#fff', fontSize: '17px', fontWeight: '600' }}>Maintenance Log</div>
-        <button onClick={() => { setShowForm(!showForm); setPendingPhotos([]) }} style={{
-          background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
-          color: '#fff', padding: '7px 14px', borderRadius: '20px', fontSize: '13px'
-        }}>
-          {showForm ? 'Cancel' : '+ Log work'}
-        </button>
+      <div style={{ background: '#0c2a4a', padding: '16px 16px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <div style={{ color: '#fff', fontSize: '17px', fontWeight: '600' }}>Maintenance</div>
+          <button onClick={() => { setShowForm(!showForm); setPendingPhotos([]) }} style={{
+            background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
+            color: '#fff', padding: '7px 14px', borderRadius: '20px', fontSize: '13px'
+          }}>
+            {showForm ? 'Cancel' : '+ Log work'}
+          </button>
+        </div>
+        <TabBar tab={tab} setTab={setTab} />
       </div>
 
       {showForm && (
