@@ -1,6 +1,30 @@
 import { useState } from 'react'
 import { apiPost } from '../api'
 
+const inp = {
+  width: '100%', padding: '10px 12px', borderRadius: '8px',
+  border: '0.5px solid rgba(0,0,0,0.2)', fontSize: '14px',
+  background: '#f5f5f3', fontFamily: 'inherit', outline: 'none'
+}
+
+function Section({ title, children }) {
+  return (
+    <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid rgba(0,0,0,0.1)', overflow: 'hidden', marginBottom: '12px' }}>
+      <div style={{ padding: '10px 14px', fontSize: '11px', fontWeight: '500', color: '#5f5e5a', borderBottom: '0.5px solid rgba(0,0,0,0.08)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{title}</div>
+      <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>{children}</div>
+    </div>
+  )
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <div style={{ fontSize: '11px', color: '#888780', marginBottom: '4px' }}>{label}</div>
+      {children}
+    </div>
+  )
+}
+
 export default function ProfileSetup({ user, onComplete }) {
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
@@ -38,26 +62,6 @@ export default function ProfileSetup({ user, onComplete }) {
     } catch (e) {}
     finally { setSaving(false) }
   }
-
-  const inp = {
-    width: '100%', padding: '10px 12px', borderRadius: '8px',
-    border: '0.5px solid rgba(0,0,0,0.2)', fontSize: '14px',
-    background: '#f5f5f3', fontFamily: 'inherit', outline: 'none'
-  }
-
-  const Section = ({ title, children }) => (
-    <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid rgba(0,0,0,0.1)', overflow: 'hidden', marginBottom: '12px' }}>
-      <div style={{ padding: '10px 14px', fontSize: '11px', fontWeight: '500', color: '#5f5e5a', borderBottom: '0.5px solid rgba(0,0,0,0.08)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{title}</div>
-      <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>{children}</div>
-    </div>
-  )
-
-  const Field = ({ label, children }) => (
-    <div>
-      <div style={{ fontSize: '11px', color: '#888780', marginBottom: '4px' }}>{label}</div>
-      {children}
-    </div>
-  )
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f3' }}>
