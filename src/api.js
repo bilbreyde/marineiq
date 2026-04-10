@@ -9,3 +9,18 @@ export async function apiPost(endpoint, body) {
   })
   return res.json()
 }
+
+export async function uploadPhoto(userId, file) {
+  const { uploadUrl, publicUrl } = await apiPost('photos', {
+    action: 'getUploadUrl',
+    userId,
+    filename: file.name,
+    contentType: file.type
+  })
+  await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'x-ms-blob-type': 'BlockBlob', 'Content-Type': file.type },
+    body: file
+  })
+  return publicUrl
+}
