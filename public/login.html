@@ -109,9 +109,10 @@
           body: JSON.stringify({ action: 'login', email, password })
         })
         const data = await res.json()
-        if (res.ok && data.userId) {
-          window.location.href = '/'
-        } else {
+       if (res.ok && data.userId) {
+        localStorage.setItem('marineiq_token', data.token)
+        window.location.href = '/'
+      } else {
           showError(data.error || 'Invalid email or password.')
           btn.disabled = false
           btn.textContent = 'Sign in'
@@ -142,6 +143,7 @@
         })
         const data = await res.json()
         if (res.ok && data.userId) {
+          localStorage.setItem('marineiq_token', data.token)
           window.location.href = '/'
         } else {
           showError(data.error || 'Could not create account.')
