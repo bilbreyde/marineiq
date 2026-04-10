@@ -1102,6 +1102,10 @@ const QUESTIONS = [
   }
 ];
 
+const { CosmosClient } = require('@azure/cosmos');
+const cosmosClient = new CosmosClient(process.env.COSMOS_CONNECTION_STRING);
+const progressContainer = cosmosClient.database('marineiq').container('progress');
+
 module.exports = async function (context, req) {
     context.log('Quiz function called');
 
@@ -1152,8 +1156,57 @@ module.exports = async function (context, req) {
         return;
     }
 
+    if (action === 'saveProgress') {
+        const { userId, score, total, categories } = req.body;
+        if (!userId) {
+            context.res = { status: 400, body: { error: 'userId is required' } };
+            return;
+        }
+        const record = {
+            id: `progress-${Date.now()}`,
+            userId,
+            date: new Date().toISOString(),
+            score,
+            total,
+            percentage: Math.round((score / total) * 100),
+            categories: categories || {}
+        };
+        await progressContainer.items.create(record);
+        context.res = { status: 201, headers: { 'Content-Type': 'application/json' }, body: { success: true } };
+        return;
+    }
+
+    if (action === 'getProgress') {
+        const { userId } = req.body;
+        if (!userId) {
+            context.res = { status: 400, body: { error: 'userId is required' } };
+            return;
+        }
+        const { resources } = await progressContainer.items.query({
+            query: 'SELECT * FROM c WHERE c.userId = @userId ORDER BY c.date DESC',
+            parameters: [{ name: '@userId', value: userId }]
+        }).fetchAll();
+
+        // Aggregate category performance across all sessions
+        const categoryTotals = {};
+        for (const r of resources) {
+            for (const [cat, stats] of Object.entries(r.categories || {})) {
+                if (!categoryTotals[cat]) categoryTotals[cat] = { correct: 0, total: 0 };
+                categoryTotals[cat].correct += stats.correct;
+                categoryTotals[cat].total += stats.total;
+            }
+        }
+
+        context.res = {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+            body: { sessions: resources, categoryTotals }
+        };
+        return;
+    }
+
     context.res = {
         status: 400,
-        body: { error: 'action must be get or grade' }
+        body: { error: 'action must be get, grade, saveProgress, or getProgress' }
     };
 };
