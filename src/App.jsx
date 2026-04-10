@@ -30,11 +30,14 @@ export default function App() {
     </div>
   )
 
-  if (!user) return (
+  if (!user) {
+  window.location.href = '/login.html'
+  return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0c2a4a', color: '#fff', fontSize: '14px' }}>
       Redirecting to login...
     </div>
   )
+}
 
   if (!profile) return (
     <ProfileSetup user={user} onComplete={() => {
