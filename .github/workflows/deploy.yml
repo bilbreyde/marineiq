@@ -37,11 +37,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install API dependencies
-        run: npm install
-        working-directory: api
       - name: Zip API package
-        run: cd api && zip -r ../api.zip . -x "*.git*"
+        run: cd api && zip -r ../api.zip . -x "*.git*" -x "node_modules/*"
       - name: Login to Azure
         uses: azure/login@v2
         with:
