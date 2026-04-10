@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 
 const API = 'https://func-marineiq-prod.azurewebsites.net/api'
 const KEY = import.meta.env.VITE_API_KEY || ''
+const TOKEN_KEY = 'marineiq_token'
 
 export function useAuth() {
   const [user, setUser] = useState(null)
@@ -12,16 +13,20 @@ export function useAuth() {
   }, [])
 
   async function verify() {
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (!token) { setLoading(false); return }
     try {
       const res = await fetch(`${API}/auth?code=${KEY}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ action: 'verify' })
       })
       if (res.ok) {
         const data = await res.json()
         if (data.userId) setUser(data)
+        else localStorage.removeItem(TOKEN_KEY)
+      } else {
+        localStorage.removeItem(TOKEN_KEY)
       }
     } catch (e) {}
     finally { setLoading(false) }
@@ -31,12 +36,12 @@ export function useAuth() {
     const res = await fetch(`${API}/auth?code=${KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ action: 'login', email, password })
     })
     const data = await res.json()
     if (res.ok && data.userId) {
-      setUser(data)
+      localStorage.setItem(TOKEN_KEY, data.token)
+      setUser({ userId: data.userId, name: data.name, email: data.email, provider: 'email' })
       return { success: true }
     }
     return { success: false, error: data.error }
@@ -46,26 +51,21 @@ export function useAuth() {
     const res = await fetch(`${API}/auth?code=${KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ action: 'register', email, password, name })
     })
     const data = await res.json()
     if (res.ok && data.userId) {
-      setUser(data)
+      localStorage.setItem(TOKEN_KEY, data.token)
+      setUser({ userId: data.userId, name: data.name, email: data.email, provider: 'email' })
       return { success: true }
     }
     return { success: false, error: data.error }
   }
 
   async function logout() {
-    await fetch(`${API}/auth?code=${KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ action: 'logout' })
-    })
+    localStorage.removeItem(TOKEN_KEY)
     setUser(null)
-    window.location.href = '/'
+    window.location.href = '/login.html'
   }
 
   return { user, loading, login, register, logout }
