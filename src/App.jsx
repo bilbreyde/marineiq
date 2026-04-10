@@ -8,7 +8,6 @@ import Chat from './pages/Chat'
 import Quiz from './pages/Quiz'
 import Logbook from './pages/Logbook'
 import Maintenance from './pages/Maintenance'
-import Login from './pages/Login'
 import ProfileSetup from './pages/ProfileSetup'
 import Profile from './pages/Profile'
 
@@ -31,7 +30,11 @@ export default function App() {
     </div>
   )
 
-  if (!user) return <Login />
+  if (!user) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0c2a4a', color: '#fff', fontSize: '14px' }}>
+      Redirecting to login...
+    </div>
+  )
 
   if (!profile) return (
     <ProfileSetup user={user} onComplete={() => {
@@ -49,7 +52,6 @@ export default function App() {
         <Route path="/logbook" element={<Logbook userId={user.userId} />} />
         <Route path="/maintenance" element={<Maintenance userId={user.userId} />} />
         <Route path="/profile" element={<Profile user={user} onUpdate={setProfile} />} />
-        <Route path="/login" element={<Navigate to="/" />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Layout>
