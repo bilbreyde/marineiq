@@ -29,18 +29,22 @@
       "allowedRoles": ["anonymous"]
     },
     {
+      "route": "/login.html",
+      "allowedRoles": ["anonymous"]
+    },
+    {
       "route": "/*",
       "allowedRoles": ["authenticated"]
     }
   ],
   "responseOverrides": {
     "401": {
-      "redirect": "/.auth/login/github?post_login_redirect_uri=/",
+      "redirect": "/login.html",
       "statusCode": 302
     }
   },
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/assets/*", "/*.{js,css,png,jpg,ico,svg,json}"]
+    "exclude": ["/assets/*", "/*.{js,css,png,jpg,ico,svg,json,html}"]
   }
 }
