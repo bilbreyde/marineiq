@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { apiPost } from '../api'
 import Scenarios from './Scenarios'
 import Knots from './Knots'
+import Charts from './Charts'
 
 const CATEGORY_COLORS = {
   COLREGS:     { bg: '#E6F1FB', text: '#0C447C' },
@@ -117,7 +118,7 @@ export default function Quiz({ userId }) {
       <div style={{ background: '#0c2a4a', padding: '16px 16px 0' }}>
         <div style={{ color: '#fff', fontSize: '17px', fontWeight: '600', marginBottom: '12px' }}>Training</div>
         <div style={{ display: 'flex', gap: '4px' }}>
-          {[{ id: 'quiz', label: 'Quiz' }, { id: 'scenarios', label: 'Scenarios' }, { id: 'knots', label: 'Knots' }, { id: 'history', label: 'Progress' }].map(t => (
+          {[{ id: 'quiz', label: 'Quiz' }, { id: 'scenarios', label: 'Scenarios' }, { id: 'knots', label: 'Knots' }, { id: 'charts', label: 'Charts' }, { id: 'history', label: 'Progress' }].map(t => (
             <button key={t.id} onClick={() => switchTab(t.id)} style={{
               padding: '7px 16px', borderRadius: '8px 8px 0 0', fontSize: '13px', fontWeight: '500',
               border: 'none', cursor: 'pointer',
@@ -136,6 +137,8 @@ export default function Quiz({ userId }) {
         <Scenarios />
       ) : tab === 'knots' ? (
         <Knots />
+      ) : tab === 'charts' ? (
+        <Charts />
       ) : current === -1 ? (
         <ResultsScreen score={score} answers={answers} onRetry={() => { loadQuestions(); setCurrent(0) }} />
       ) : (
