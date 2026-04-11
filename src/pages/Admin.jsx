@@ -104,7 +104,7 @@ function AdminPanel() {
         {loading ? (
           <div style={{ textAlign: 'center', padding: '48px', color: '#888780', fontSize: '13px' }}>Loading...</div>
         ) : error ? (
-          <div style={{ padding: '24px', background: '#FEF2F2', borderRadius: '10px', border: '1px solid #FCA5A5', color: '#991B1B', fontSize: '13px' }}>
+          <div style={{ padding: '24px', background: '#FEF2F2', borderRadius: '10px', border: '1px solid #FCA5A5', color: '#991B1B', fontSize: '13px', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
             {error}
           </div>
         ) : tab === 'users' ? (

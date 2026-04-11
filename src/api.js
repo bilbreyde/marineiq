@@ -12,7 +12,13 @@ export async function apiPost(endpoint, body) {
     },
     body: JSON.stringify(body)
   })
-  return res.json()
+  // Try to parse as JSON; fall back to a structured error with the HTTP status
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw new Error(`HTTP ${res.status} from /${endpoint}: ${text.slice(0, 120)}`)
+  }
 }
 
 export async function uploadPhoto(userId, file) {
