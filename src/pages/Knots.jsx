@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import KnotViewer from '../components/KnotViewer'
+import { bowlineKnot } from '../knots/bowline'
 
 const KNOTS = [
   {
@@ -16,6 +18,7 @@ const KNOTS = [
     tip: "The bowline is the king of sailing knots — it makes a loop that holds under load but won't jam. Learn this one before anything else.",
     svg: BowlineSVG,
     tag: 'Essential',
+    interactive: bowlineKnot,
   },
   {
     id: 'cleat-hitch',
@@ -342,6 +345,7 @@ export default function Knots() {
   if (selected) {
     const knot = KNOTS.find(k => k.id === selected)
     const SvgComp = knot.svg
+
     return (
       <div style={{ padding: '16px', maxWidth: '600px', margin: '0 auto' }}>
         <button onClick={() => setSelected(null)} style={{
@@ -360,40 +364,48 @@ export default function Knots() {
           }}>{knot.tag}</span>
         </div>
 
-        <div style={{ fontSize: '11px', fontWeight: '500', color: DIFF_COLOR[knot.difficulty], marginBottom: '12px' }}>
+        <div style={{ fontSize: '11px', fontWeight: '500', color: DIFF_COLOR[knot.difficulty], marginBottom: '16px' }}>
           {knot.difficulty}
         </div>
 
-        <div style={{
-          display: 'flex', justifyContent: 'center', marginBottom: '16px',
-          background: '#f0f4f8', borderRadius: '12px', padding: '12px'
-        }}>
-          <SvgComp />
-        </div>
+        {/* Interactive viewer — shown when knot has step data; falls back to static SVG */}
+        {knot.interactive ? (
+          <div style={{ marginBottom: '20px' }}>
+            <KnotViewer knot={knot.interactive} />
+          </div>
+        ) : (
+          <>
+            <div style={{
+              display: 'flex', justifyContent: 'center', marginBottom: '16px',
+              background: '#f0f4f8', borderRadius: '12px', padding: '12px'
+            }}>
+              <SvgComp />
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '12px', fontWeight: '600', color: '#555', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                How to tie it
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {knot.steps.map((step, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                    <div style={{
+                      minWidth: '24px', height: '24px', borderRadius: '50%',
+                      background: '#0c2a4a', color: '#fff', fontSize: '12px', fontWeight: '600',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                    }}>{i + 1}</div>
+                    <div style={{ fontSize: '14px', color: '#333', lineHeight: '1.6', paddingTop: '2px' }}>{step}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         <div style={{ marginBottom: '16px' }}>
           <div style={{ fontSize: '12px', fontWeight: '600', color: '#555', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
             When to use
           </div>
           <div style={{ fontSize: '14px', color: '#333', lineHeight: '1.6' }}>{knot.use}</div>
-        </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '12px', fontWeight: '600', color: '#555', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-            How to tie it
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {knot.steps.map((step, i) => (
-              <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                <div style={{
-                  minWidth: '24px', height: '24px', borderRadius: '50%',
-                  background: '#0c2a4a', color: '#fff', fontSize: '12px', fontWeight: '600',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-                }}>{i + 1}</div>
-                <div style={{ fontSize: '14px', color: '#333', lineHeight: '1.6', paddingTop: '2px' }}>{step}</div>
-              </div>
-            ))}
-          </div>
         </div>
 
         <div style={{
