@@ -3,11 +3,21 @@ const { verifyToken, CORS, handleOptions, err } = require('../shared/auth')
 
 const ADMIN_EMAIL = 'don.bilbrey@gmail.com'
 
-const client = new CosmosClient(process.env.COSMOS_CONNECTION_STRING)
-const database = client.database('marineiq')
+let client, database
+try {
+  client = new CosmosClient(process.env.COSMOS_CONNECTION_STRING)
+  database = client.database('marineiq')
+} catch (initErr) {
+  // Will be caught per-request below
+}
 
 module.exports = async function (context, req) {
-  context.log('Admin function called')
+  context.log('Admin function called, method:', req.method)
+
+  if (!client || !database) {
+    context.res = { status: 500, headers: CORS, body: { error: 'Cosmos client failed to initialise — check COSMOS_CONNECTION_STRING app setting' } }
+    return
+  }
 
   if (req.method === 'OPTIONS') { handleOptions(context); return }
 
