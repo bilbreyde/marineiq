@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import KnotViewer from '../components/KnotViewer'
-import { bowlineKnot } from '../knots/bowline'
+import { bowlineKnot }     from '../knots/bowline'
+import { cleatHitchKnot }  from '../knots/cleat-hitch'
+import { cloveHitchKnot }  from '../knots/clove-hitch'
+import { figureEightKnot } from '../knots/figure-eight'
+import { roundTurnKnot }   from '../knots/round-turn'
+import { sheetBendKnot }   from '../knots/sheet-bend'
+import { reefKnotKnot }    from '../knots/reef-knot'
+import { rollingHitchKnot }from '../knots/rolling-hitch'
+import { anchorHitchKnot } from '../knots/anchor-hitch'
 
 const KNOTS = [
   {
@@ -35,6 +43,7 @@ const KNOTS = [
     tip: "Lead the line to the far horn first, not the near one — starting near is a rookie mistake that capsizes your figure-eight.",
     svg: CleatHitchSVG,
     tag: 'Essential',
+    interactive: cleatHitchKnot,
   },
   {
     id: 'clove-hitch',
@@ -50,6 +59,7 @@ const KNOTS = [
     tip: "Fast and handy but can slip if load direction changes. Finish with a half-hitch on the standing part if you'll leave it unattended.",
     svg: CloveHitchSVG,
     tag: 'Common',
+    interactive: cloveHitchKnot,
   },
   {
     id: 'figure-eight',
@@ -65,6 +75,7 @@ const KNOTS = [
     tip: "Every sheet end gets a figure-eight. If you hear a sail flogging after a tack, it's because someone skipped this step.",
     svg: FigureEightSVG,
     tag: 'Essential',
+    interactive: figureEightKnot,
   },
   {
     id: 'round-turn',
@@ -80,6 +91,7 @@ const KNOTS = [
     tip: "The round turn takes the load; the half hitches just lock it. This means you can always ease the hitches under load without losing control.",
     svg: RoundTurnSVG,
     tag: 'Essential',
+    interactive: roundTurnKnot,
   },
   {
     id: 'sheet-bend',
@@ -96,6 +108,7 @@ const KNOTS = [
     tip: "Both tails must be on the same side or it's a left-handed sheet bend — half the strength and it'll slip under load.",
     svg: SheetBendSVG,
     tag: 'Common',
+    interactive: sheetBendKnot,
   },
   {
     id: 'reef-knot',
@@ -111,6 +124,7 @@ const KNOTS = [
     tip: "Right over right gives you a granny knot — it looks almost identical but jams under load and is useless in a reef. Practice until the flat shape is automatic.",
     svg: ReefKnotSVG,
     tag: 'Common',
+    interactive: reefKnotKnot,
   },
   {
     id: 'rolling-hitch',
@@ -126,6 +140,7 @@ const KNOTS = [
     tip: "The extra wrap always goes toward the load — that's what makes it grip. A clove hitch on a loaded line will just slide.",
     svg: RollingHitchSVG,
     tag: 'Advanced',
+    interactive: rollingHitchKnot,
   },
   {
     id: 'anchor-hitch',
@@ -140,6 +155,7 @@ const KNOTS = [
     ],
     tip: "Tie this one before you need it — an anchor reset in a squall is not the time to be figuring out which loop the tail goes through.",
     svg: AnchorHitchSVG,
+    interactive: anchorHitchKnot,
     tag: 'Essential',
   },
 ]
