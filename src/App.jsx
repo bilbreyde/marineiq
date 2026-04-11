@@ -12,6 +12,7 @@ import Maintenance from './pages/Maintenance'
 import ProfileSetup from './pages/ProfileSetup'
 import Profile from './pages/Profile'
 import VesselManage from './pages/VesselManage'
+import Admin from './pages/Admin'
 
 export default function App() {
   const { user, loading, logout } = useAuth()
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="/maintenance" element={<Maintenance userId={user.userId} />} />
           <Route path="/profile" element={<Profile user={user} onUpdate={setProfile} />} />
           <Route path="/vessel" element={<VesselManage />} />
+          <Route path="/admin" element={<Admin user={user} />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Layout>
