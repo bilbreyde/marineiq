@@ -11,16 +11,19 @@ export default function Logbook({ userId }) {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [editingTrip, setEditingTrip] = useState(null)
   const [pendingPhotos, setPendingPhotos] = useState([])
+  const [existingPhotos, setExistingPhotos] = useState([])
   const fileRef = useRef()
   const csvRef = useRef()
   const [importing, setImporting] = useState(false)
-  const [form, setForm] = useState({
+  const BLANK = {
     departure: '', destination: '',
     date: new Date().toISOString().split('T')[0],
     hoursUnderway: '', hoursMotoring: '', nauticalMiles: '',
     crew: 1, conditions: '', notes: '', certCategory: ''
-  })
+  }
+  const [form, setForm] = useState(BLANK)
 
   useEffect(() => { if (vesselId) loadTrips() }, [vesselId])
 
@@ -48,14 +51,42 @@ export default function Logbook({ userId }) {
     })
   }
 
+  function startEdit(trip) {
+    setEditingTrip(trip)
+    setForm({
+      departure: trip.departure || '',
+      destination: trip.destination || '',
+      date: trip.date ? trip.date.split('T')[0] : new Date().toISOString().split('T')[0],
+      hoursUnderway: trip.hoursUnderway ?? '',
+      hoursMotoring: trip.hoursMotoring ?? '',
+      nauticalMiles: trip.nauticalMiles ?? '',
+      crew: trip.crew ?? 1,
+      conditions: trip.conditions || '',
+      notes: trip.notes || '',
+      certCategory: trip.certCategory || ''
+    })
+    setExistingPhotos(trip.photos || [])
+    setPendingPhotos([])
+    setShowForm(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function cancelForm() {
+    setShowForm(false)
+    setEditingTrip(null)
+    setPendingPhotos([])
+    setExistingPhotos([])
+    setForm(BLANK)
+  }
+
   async function saveTrip() {
     if (!form.departure || !form.destination) return
     setSaving(true)
     try {
-      const photoUrls = await Promise.all(pendingPhotos.map(p => uploadPhoto(userId, p.file)))
-      await apiPost('logbook', {
-        action: 'logTrip',
-        userId, vesselId,
+      const newPhotoUrls = await Promise.all(pendingPhotos.map(p => uploadPhoto(userId, p.file)))
+      const photos = [...existingPhotos, ...newPhotoUrls]
+      const payload = {
+        vesselId,
         departure: form.departure,
         destination: form.destination,
         date: form.date,
@@ -66,18 +97,16 @@ export default function Logbook({ userId }) {
         hoursMotoring: parseFloat(form.hoursMotoring) || 0,
         nauticalMiles: parseFloat(form.nauticalMiles) || 0,
         crew: parseInt(form.crew) || 1,
-        photos: photoUrls
-      })
-      setShowForm(false)
-      setPendingPhotos([])
-      setForm({
-        departure: '', destination: '',
-        date: new Date().toISOString().split('T')[0],
-        hoursUnderway: '', hoursMotoring: '', nauticalMiles: '',
-        crew: 1, conditions: '', notes: '', certCategory: ''
-      })
+        photos
+      }
+      if (editingTrip) {
+        await apiPost('logbook', { action: 'updateTrip', tripId: editingTrip.id, tripUserId: editingTrip.userId, ...payload })
+      } else {
+        await apiPost('logbook', { action: 'logTrip', userId, ...payload })
+      }
+      cancelForm()
       loadTrips()
-    } catch (e) {}
+    } catch (e) { alert(e.message || 'Save failed') }
     finally { setSaving(false) }
   }
 
@@ -145,7 +174,7 @@ export default function Logbook({ userId }) {
             color: '#fff', padding: '7px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer'
           }}>{importing ? '...' : '⬆ CSV'}</button>
           <input ref={csvRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={importTrips} />
-          <button onClick={() => { setShowForm(!showForm); setPendingPhotos([]) }} style={{
+          <button onClick={() => { if (showForm) cancelForm(); else setShowForm(true) }} style={{
             background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
             color: '#fff', padding: '7px 14px', borderRadius: '20px', fontSize: '13px'
           }}>
@@ -171,7 +200,7 @@ export default function Logbook({ userId }) {
 
       {showForm && (
         <div style={{ margin: '12px 16px', background: '#fff', borderRadius: '12px', border: '0.5px solid rgba(0,0,0,0.12)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ fontSize: '13px', fontWeight: '500', color: '#0c2a4a' }}>New trip entry</div>
+          <div style={{ fontSize: '13px', fontWeight: '500', color: '#0c2a4a' }}>{editingTrip ? 'Edit trip' : 'New trip entry'}</div>
           {[
             { key: 'departure', label: 'Departure', placeholder: 'Dinner Key Marina' },
             { key: 'destination', label: 'Destination', placeholder: 'Dry Tortugas' }
@@ -225,15 +254,28 @@ export default function Logbook({ userId }) {
 
           <div>
             <div style={{ fontSize: '11px', color: '#888780', marginBottom: '8px' }}>Photos</div>
+            {existingPhotos.length > 0 && (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                {existingPhotos.map((url, i) => (
+                  <div key={i} style={{ position: 'relative', width: '72px', height: '72px' }}>
+                    <img src={url} alt="" style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '8px' }} />
+                    <button onClick={() => setExistingPhotos(p => p.filter((_, j) => j !== i))} style={{
+                      position: 'absolute', top: '-6px', right: '-6px', width: '20px', height: '20px',
+                      borderRadius: '50%', background: '#A32D2D', color: '#fff', border: 'none',
+                      fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
             {pendingPhotos.length > 0 && (
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
                 {pendingPhotos.map((p, i) => (
                   <div key={i} style={{ position: 'relative', width: '72px', height: '72px' }}>
                     <img src={p.preview} alt="" style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '8px' }} />
                     <button onClick={() => removePhoto(i)} style={{
-                      position: 'absolute', top: '-6px', right: '-6px',
-                      width: '20px', height: '20px', borderRadius: '50%',
-                      background: '#A32D2D', color: '#fff', border: 'none',
+                      position: 'absolute', top: '-6px', right: '-6px', width: '20px', height: '20px',
+                      borderRadius: '50%', background: '#A32D2D', color: '#fff', border: 'none',
                       fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
                     }}>×</button>
                   </div>
@@ -244,9 +286,7 @@ export default function Logbook({ userId }) {
             <button onClick={() => fileRef.current.click()} style={{
               padding: '8px 14px', borderRadius: '8px', background: '#f5f5f3',
               border: '0.5px solid rgba(0,0,0,0.2)', fontSize: '13px', color: '#5f5e5a', cursor: 'pointer'
-            }}>
-              + Add photos
-            </button>
+            }}>+ Add photos</button>
           </div>
 
           <button onClick={saveTrip} disabled={saving} style={{
@@ -254,7 +294,7 @@ export default function Logbook({ userId }) {
             color: '#fff', border: 'none', fontSize: '14px', fontWeight: '500',
             opacity: saving ? 0.7 : 1
           }}>
-            {saving ? 'Uploading...' : 'Log this trip'}
+            {saving ? 'Saving...' : editingTrip ? 'Save changes' : 'Log this trip'}
           </button>
         </div>
       )}
@@ -273,6 +313,7 @@ export default function Logbook({ userId }) {
                 &#9973;
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
+
                 <div style={{ fontSize: '14px', fontWeight: '500' }}>
                   {trip.departure} to {trip.destination}
                 </div>
@@ -303,6 +344,11 @@ export default function Logbook({ userId }) {
                   </div>
                 )}
               </div>
+              <button onClick={() => startEdit(trip)} style={{
+                flexShrink: 0, padding: '6px 12px', borderRadius: '8px',
+                background: '#f5f5f3', border: '0.5px solid rgba(0,0,0,0.15)',
+                fontSize: '12px', color: '#5f5e5a', cursor: 'pointer', alignSelf: 'flex-start'
+              }}>Edit</button>
             </div>
           </div>
         ))}

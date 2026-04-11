@@ -105,6 +105,41 @@ module.exports = async function (context, req) {
 
       // ── MAINTENANCE ────────────────────────────────────────────────────────
 
+      case 'updateTrip': {
+        if (!vesselId) { err(context, 400, 'vesselId required'); return }
+        await requireMembership(vesselId, userId, 'crew')
+
+        const { tripId, tripUserId } = req.body
+        if (!tripId || !tripUserId) { err(context, 400, 'tripId and tripUserId required'); return }
+
+        const container = database.container('trips')
+        const { resource: existing } = await container.item(tripId, tripUserId).read()
+        if (!existing) { err(context, 404, 'Trip not found'); return }
+        const isLegacy = !existing.vesselId
+        if (isLegacy && existing.userId !== userId) { err(context, 403, 'Not your trip'); return }
+        if (!isLegacy && existing.vesselId !== vesselId) { err(context, 403, 'Trip does not belong to this vessel'); return }
+        if (isLegacy) existing.vesselId = vesselId
+
+        const updated = {
+          ...existing,
+          departure: req.body.departure ?? existing.departure,
+          destination: req.body.destination ?? existing.destination,
+          date: req.body.date ?? existing.date,
+          hoursUnderway: req.body.hoursUnderway ?? existing.hoursUnderway,
+          hoursMotoring: req.body.hoursMotoring ?? existing.hoursMotoring,
+          nauticalMiles: req.body.nauticalMiles ?? existing.nauticalMiles,
+          crew: req.body.crew ?? existing.crew,
+          conditions: req.body.conditions ?? existing.conditions,
+          notes: req.body.notes ?? existing.notes,
+          certCategory: req.body.certCategory ?? existing.certCategory,
+          photos: req.body.photos ?? existing.photos,
+          updatedAt: new Date().toISOString()
+        }
+        const { resource } = await container.item(tripId, tripUserId).replace(updated)
+        context.res = { status: 200, headers: CORS, body: { success: true, trip: resource } }
+        break
+      }
+
       case 'logMaintenance': {
         if (!vesselId) { err(context, 400, 'vesselId required'); return }
         await requireMembership(vesselId, userId, 'crew')
@@ -130,6 +165,40 @@ module.exports = async function (context, req) {
         }
         const { resource } = await container.items.create(entry)
         context.res = { status: 201, headers: CORS, body: { success: true, entry: resource } }
+        break
+      }
+
+      case 'updateMaintenance': {
+        if (!vesselId) { err(context, 400, 'vesselId required'); return }
+        await requireMembership(vesselId, userId, 'crew')
+
+        const { entryId, entryUserId } = req.body
+        if (!entryId || !entryUserId) { err(context, 400, 'entryId and entryUserId required'); return }
+
+        const container = database.container('maintenance')
+        const { resource: existing } = await container.item(entryId, entryUserId).read()
+        if (!existing) { err(context, 404, 'Entry not found'); return }
+        const isLegacy = !existing.vesselId
+        if (isLegacy && existing.userId !== userId) { err(context, 403, 'Not your entry'); return }
+        if (!isLegacy && existing.vesselId !== vesselId) { err(context, 403, 'Entry does not belong to this vessel'); return }
+        if (isLegacy) existing.vesselId = vesselId
+
+        const updated = {
+          ...existing,
+          description: req.body.description ?? existing.description,
+          category: req.body.category ?? existing.category,
+          date: req.body.date ?? existing.date,
+          engineHoursAtService: req.body.engineHoursAtService ?? existing.engineHoursAtService,
+          nextDueEngineHours: req.body.nextDueEngineHours ?? existing.nextDueEngineHours,
+          cost: req.body.cost ?? existing.cost,
+          laborHours: req.body.laborHours ?? existing.laborHours,
+          technician: req.body.technician ?? existing.technician,
+          notes: req.body.notes ?? existing.notes,
+          photos: req.body.photos ?? existing.photos,
+          updatedAt: new Date().toISOString()
+        }
+        const { resource } = await container.item(entryId, entryUserId).replace(updated)
+        context.res = { status: 200, headers: CORS, body: { success: true, entry: resource } }
         break
       }
 

@@ -38,16 +38,19 @@ export default function Maintenance({ userId }) {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [editingEntry, setEditingEntry] = useState(null)
   const [pendingPhotos, setPendingPhotos] = useState([])
+  const [existingPhotos, setExistingPhotos] = useState([])
   const fileRef = useRef()
   const csvRef = useRef()
   const [importing, setImporting] = useState(false)
-  const [form, setForm] = useState({
+  const BLANK = {
     description: '', category: 'Engine',
     date: new Date().toISOString().split('T')[0],
     engineHoursAtService: '', nextDueEngineHours: '',
     cost: '', laborHours: '', technician: 'Owner', notes: ''
-  })
+  }
+  const [form, setForm] = useState(BLANK)
 
   useEffect(() => { if (vesselId) loadEntries() }, [vesselId])
 
@@ -58,6 +61,33 @@ export default function Maintenance({ userId }) {
       setEntries(data.entries || [])
     } catch (e) {}
     finally { setLoading(false) }
+  }
+
+  function startEdit(entry) {
+    setEditingEntry(entry)
+    setExistingPhotos(entry.photos || [])
+    setPendingPhotos([])
+    setForm({
+      description: entry.description || '',
+      category: entry.category || 'Engine',
+      date: entry.date ? entry.date.split('T')[0] : new Date().toISOString().split('T')[0],
+      engineHoursAtService: entry.engineHoursAtService || '',
+      nextDueEngineHours: entry.nextDueEngineHours || '',
+      cost: entry.cost || '',
+      laborHours: entry.laborHours || '',
+      technician: entry.technician || 'Owner',
+      notes: entry.notes || ''
+    })
+    setShowForm(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function cancelForm() {
+    setShowForm(false)
+    setEditingEntry(null)
+    setPendingPhotos([])
+    setExistingPhotos([])
+    setForm(BLANK)
   }
 
   function onFilesSelected(e) {
@@ -78,29 +108,42 @@ export default function Maintenance({ userId }) {
     if (!form.description) return
     setSaving(true)
     try {
-      const photoUrls = await Promise.all(pendingPhotos.map(p => uploadPhoto(userId, p.file)))
-      await apiPost('logbook', {
-        action: 'logMaintenance',
-        userId, vesselId,
-        description: form.description,
-        category: form.category,
-        date: form.date,
-        technician: form.technician,
-        notes: form.notes,
-        engineHoursAtService: parseFloat(form.engineHoursAtService) || 0,
-        nextDueEngineHours: parseFloat(form.nextDueEngineHours) || null,
-        cost: parseFloat(form.cost) || 0,
-        laborHours: parseFloat(form.laborHours) || 0,
-        photos: photoUrls
-      })
-      setShowForm(false)
-      setPendingPhotos([])
-      setForm({
-        description: '', category: 'Engine',
-        date: new Date().toISOString().split('T')[0],
-        engineHoursAtService: '', nextDueEngineHours: '',
-        cost: '', laborHours: '', technician: 'Owner', notes: ''
-      })
+      const newPhotoUrls = await Promise.all(pendingPhotos.map(p => uploadPhoto(userId, p.file)))
+      const allPhotos = [...existingPhotos, ...newPhotoUrls]
+      if (editingEntry) {
+        await apiPost('logbook', {
+          action: 'updateMaintenance',
+          userId, vesselId,
+          entryId: editingEntry.id,
+          entryUserId: editingEntry.userId,
+          description: form.description,
+          category: form.category,
+          date: form.date,
+          technician: form.technician,
+          notes: form.notes,
+          engineHoursAtService: parseFloat(form.engineHoursAtService) || 0,
+          nextDueEngineHours: parseFloat(form.nextDueEngineHours) || null,
+          cost: parseFloat(form.cost) || 0,
+          laborHours: parseFloat(form.laborHours) || 0,
+          photos: allPhotos
+        })
+      } else {
+        await apiPost('logbook', {
+          action: 'logMaintenance',
+          userId, vesselId,
+          description: form.description,
+          category: form.category,
+          date: form.date,
+          technician: form.technician,
+          notes: form.notes,
+          engineHoursAtService: parseFloat(form.engineHoursAtService) || 0,
+          nextDueEngineHours: parseFloat(form.nextDueEngineHours) || null,
+          cost: parseFloat(form.cost) || 0,
+          laborHours: parseFloat(form.laborHours) || 0,
+          photos: allPhotos
+        })
+      }
+      cancelForm()
       loadEntries()
     } catch (e) {}
     finally { setSaving(false) }
@@ -179,7 +222,7 @@ export default function Maintenance({ userId }) {
               color: '#fff', padding: '7px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer'
             }}>{importing ? '...' : '⬆ CSV'}</button>
             <input ref={csvRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={importEntries} />
-            <button onClick={() => { setShowForm(!showForm); setPendingPhotos([]) }} style={{
+            <button onClick={() => { if (showForm) { cancelForm() } else { setEditingEntry(null); setExistingPhotos([]); setPendingPhotos([]); setForm(BLANK); setShowForm(true) } }} style={{
               background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
               color: '#fff', padding: '7px 14px', borderRadius: '20px', fontSize: '13px'
             }}>
@@ -192,7 +235,7 @@ export default function Maintenance({ userId }) {
 
       {showForm && (
         <div style={{ margin: '12px 16px', background: '#fff', borderRadius: '12px', border: '0.5px solid rgba(0,0,0,0.12)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ fontSize: '13px', fontWeight: '500', color: '#0c2a4a' }}>New maintenance entry</div>
+          <div style={{ fontSize: '13px', fontWeight: '500', color: '#0c2a4a' }}>{editingEntry ? 'Edit maintenance entry' : 'New maintenance entry'}</div>
           <div>
             <div style={{ fontSize: '11px', color: '#888780', marginBottom: '4px' }}>Description</div>
             <input style={inp} placeholder="Oil and filter change" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
@@ -241,10 +284,21 @@ export default function Maintenance({ userId }) {
 
           <div>
             <div style={{ fontSize: '11px', color: '#888780', marginBottom: '8px' }}>Photos</div>
-            {pendingPhotos.length > 0 && (
+            {(existingPhotos.length > 0 || pendingPhotos.length > 0) && (
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                {existingPhotos.map((url, i) => (
+                  <div key={`ex-${i}`} style={{ position: 'relative', width: '72px', height: '72px' }}>
+                    <img src={url} alt="" style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '8px' }} />
+                    <button onClick={() => setExistingPhotos(p => p.filter((_, j) => j !== i))} style={{
+                      position: 'absolute', top: '-6px', right: '-6px',
+                      width: '20px', height: '20px', borderRadius: '50%',
+                      background: '#A32D2D', color: '#fff', border: 'none',
+                      fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>×</button>
+                  </div>
+                ))}
                 {pendingPhotos.map((p, i) => (
-                  <div key={i} style={{ position: 'relative', width: '72px', height: '72px' }}>
+                  <div key={`new-${i}`} style={{ position: 'relative', width: '72px', height: '72px' }}>
                     <img src={p.preview} alt="" style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '8px' }} />
                     <button onClick={() => removePhoto(i)} style={{
                       position: 'absolute', top: '-6px', right: '-6px',
@@ -270,7 +324,7 @@ export default function Maintenance({ userId }) {
             color: '#fff', border: 'none', fontSize: '14px', fontWeight: '500',
             opacity: saving ? 0.7 : 1
           }}>
-            {saving ? 'Uploading...' : 'Log this work'}
+            {saving ? 'Saving...' : editingEntry ? 'Save changes' : 'Log this work'}
           </button>
         </div>
       )}
@@ -293,7 +347,14 @@ export default function Maintenance({ userId }) {
                   &#128295;
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '14px', fontWeight: '500' }}>{entry.description}</div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: '500' }}>{entry.description}</div>
+                    <button onClick={() => startEdit(entry)} style={{
+                      flexShrink: 0, background: 'none', border: '0.5px solid rgba(0,0,0,0.2)',
+                      borderRadius: '6px', padding: '3px 8px', fontSize: '11px',
+                      color: '#5f5e5a', cursor: 'pointer'
+                    }}>Edit</button>
+                  </div>
                   <div style={{ fontSize: '11px', color: '#888780', marginTop: '2px' }}>
                     {new Date(entry.date).toLocaleDateString()} &middot; {entry.technician}
                   </div>
