@@ -201,7 +201,12 @@ module.exports = async function (context, req) {
         const container = database.container('parts')
         const { resource: existing } = await container.item(partId, partUserId).read()
         if (!existing) { err(context, 404, 'Part not found'); return }
-        if (existing.vesselId !== vesselId) { err(context, 403, 'Part does not belong to this vessel'); return }
+        // Allow legacy parts (no vesselId) if the caller is the owner; otherwise check vesselId
+        const isLegacy = !existing.vesselId
+        if (isLegacy && existing.userId !== userId) { err(context, 403, 'Not your part'); return }
+        if (!isLegacy && existing.vesselId !== vesselId) { err(context, 403, 'Part does not belong to this vessel'); return }
+        // Stamp vesselId onto legacy parts when edited
+        if (isLegacy) { existing.vesselId = vesselId }
 
         const updated = {
           ...existing,
