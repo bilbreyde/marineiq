@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { apiPost } from '../api'
+import { downloadCSV, parseCSV } from '../csvUtils'
 
 const CATEGORIES = ['Engine', 'Electrical', 'Rigging', 'Hull', 'Fuel system', 'Plumbing', 'Safety gear', 'Navigation', 'Other']
 
@@ -21,6 +22,8 @@ export default function Parts({ userId }) {
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
+  const csvRef = useRef()
+  const [importing, setImporting] = useState(false)
   const [form, setForm] = useState({
     name: '', manufacturer: '', partNumber: '',
     category: 'Engine', installDate: new Date().toISOString().split('T')[0], notes: ''
@@ -61,6 +64,41 @@ export default function Parts({ userId }) {
     finally { setSaving(false) }
   }
 
+  function downloadParts() {
+    const rows = parts.map(p => ({
+      name: p.name,
+      manufacturer: p.manufacturer || '',
+      partNumber: p.partNumber || '',
+      category: p.category,
+      installDate: p.installDate || '',
+      notes: p.notes || ''
+    }))
+    downloadCSV('parts.csv', rows)
+  }
+
+  async function importParts(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    e.target.value = ''
+    setImporting(true)
+    try {
+      const rows = parseCSV(await file.text())
+      for (const row of rows) {
+        await apiPost('logbook', {
+          action: 'logPart', userId,
+          name: row.name || '',
+          manufacturer: row.manufacturer || '',
+          partNumber: row.partNumber || '',
+          category: row.category || 'Engine',
+          installDate: row.installDate || new Date().toISOString().split('T')[0],
+          notes: row.notes || ''
+        })
+      }
+      loadParts()
+    } catch (e) {}
+    finally { setImporting(false) }
+  }
+
   const filtered = search.trim()
     ? parts.filter(p =>
         p.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -86,12 +124,23 @@ export default function Parts({ userId }) {
     <div>
       <div style={{ background: '#0c2a4a', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ color: '#fff', fontSize: '17px', fontWeight: '600' }}>Parts Library</div>
-        <button onClick={() => setShowForm(!showForm)} style={{
-          background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
-          color: '#fff', padding: '7px 14px', borderRadius: '20px', fontSize: '13px'
-        }}>
-          {showForm ? 'Cancel' : '+ Add part'}
-        </button>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <button onClick={downloadParts} disabled={!parts.length} style={{
+            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.25)',
+            color: '#fff', padding: '7px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer'
+          }}>⬇ CSV</button>
+          <button onClick={() => csvRef.current.click()} disabled={importing} style={{
+            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.25)',
+            color: '#fff', padding: '7px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer'
+          }}>{importing ? '...' : '⬆ CSV'}</button>
+          <input ref={csvRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={importParts} />
+          <button onClick={() => setShowForm(!showForm)} style={{
+            background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
+            color: '#fff', padding: '7px 14px', borderRadius: '20px', fontSize: '13px'
+          }}>
+            {showForm ? 'Cancel' : '+ Add part'}
+          </button>
+        </div>
       </div>
 
       {showForm && (

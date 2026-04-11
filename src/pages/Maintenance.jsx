@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { apiPost, uploadPhoto } from '../api'
 import Parts from './Parts'
+import { downloadCSV, parseCSV } from '../csvUtils'
 
 const CATEGORIES = ['Engine', 'Electrical', 'Rigging', 'Hull', 'Fuel system', 'Plumbing', 'Safety gear', 'Navigation', 'Other']
 
@@ -36,6 +37,8 @@ export default function Maintenance({ userId }) {
   const [saving, setSaving] = useState(false)
   const [pendingPhotos, setPendingPhotos] = useState([])
   const fileRef = useRef()
+  const csvRef = useRef()
+  const [importing, setImporting] = useState(false)
   const [form, setForm] = useState({
     description: '', category: 'Engine',
     date: new Date().toISOString().split('T')[0],
@@ -100,6 +103,48 @@ export default function Maintenance({ userId }) {
     finally { setSaving(false) }
   }
 
+  function downloadEntries() {
+    const rows = entries.map(e => ({
+      date: e.date,
+      description: e.description,
+      category: e.category,
+      engineHoursAtService: e.engineHoursAtService,
+      nextDueEngineHours: e.nextDueEngineHours || '',
+      cost: e.cost,
+      laborHours: e.laborHours,
+      technician: e.technician,
+      notes: e.notes || ''
+    }))
+    downloadCSV('maintenance.csv', rows)
+  }
+
+  async function importEntries(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    e.target.value = ''
+    setImporting(true)
+    try {
+      const rows = parseCSV(await file.text())
+      for (const row of rows) {
+        await apiPost('logbook', {
+          action: 'logMaintenance', userId,
+          description: row.description || '',
+          category: row.category || 'Engine',
+          date: row.date || new Date().toISOString().split('T')[0],
+          technician: row.technician || 'Owner',
+          notes: row.notes || '',
+          engineHoursAtService: parseFloat(row.engineHoursAtService) || 0,
+          nextDueEngineHours: parseFloat(row.nextDueEngineHours) || null,
+          cost: parseFloat(row.cost) || 0,
+          laborHours: parseFloat(row.laborHours) || 0,
+          photos: []
+        })
+      }
+      loadEntries()
+    } catch (e) {}
+    finally { setImporting(false) }
+  }
+
   const inp = {
     width: '100%', padding: '10px 12px', borderRadius: '8px',
     border: '0.5px solid rgba(0,0,0,0.2)', fontSize: '14px',
@@ -121,12 +166,23 @@ export default function Maintenance({ userId }) {
       <div style={{ background: '#0c2a4a', padding: '16px 16px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <div style={{ color: '#fff', fontSize: '17px', fontWeight: '600' }}>Maintenance</div>
-          <button onClick={() => { setShowForm(!showForm); setPendingPhotos([]) }} style={{
-            background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
-            color: '#fff', padding: '7px 14px', borderRadius: '20px', fontSize: '13px'
-          }}>
-            {showForm ? 'Cancel' : '+ Log work'}
-          </button>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <button onClick={downloadEntries} disabled={!entries.length} style={{
+              background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.25)',
+              color: '#fff', padding: '7px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer'
+            }}>⬇ CSV</button>
+            <button onClick={() => csvRef.current.click()} disabled={importing} style={{
+              background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.25)',
+              color: '#fff', padding: '7px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer'
+            }}>{importing ? '...' : '⬆ CSV'}</button>
+            <input ref={csvRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={importEntries} />
+            <button onClick={() => { setShowForm(!showForm); setPendingPhotos([]) }} style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
+              color: '#fff', padding: '7px 14px', borderRadius: '20px', fontSize: '13px'
+            }}>
+              {showForm ? 'Cancel' : '+ Log work'}
+            </button>
+          </div>
         </div>
         <TabBar tab={tab} setTab={setTab} />
       </div>

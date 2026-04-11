@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { apiPost, uploadPhoto } from '../api'
+import { downloadCSV, parseCSV } from '../csvUtils'
 
 export default function Logbook({ userId }) {
   const [trips, setTrips] = useState([])
@@ -9,6 +10,8 @@ export default function Logbook({ userId }) {
   const [saving, setSaving] = useState(false)
   const [pendingPhotos, setPendingPhotos] = useState([])
   const fileRef = useRef()
+  const csvRef = useRef()
+  const [importing, setImporting] = useState(false)
   const [form, setForm] = useState({
     departure: '', destination: '',
     date: new Date().toISOString().split('T')[0],
@@ -75,6 +78,50 @@ export default function Logbook({ userId }) {
     finally { setSaving(false) }
   }
 
+  function downloadTrips() {
+    const rows = trips.map(t => ({
+      date: t.date,
+      departure: t.departure,
+      destination: t.destination,
+      hoursUnderway: t.hoursUnderway,
+      hoursMotoring: t.hoursMotoring,
+      nauticalMiles: t.nauticalMiles,
+      crew: t.crew,
+      conditions: t.conditions || '',
+      certCategory: t.certCategory || '',
+      notes: t.notes || ''
+    }))
+    downloadCSV('trips.csv', rows)
+  }
+
+  async function importTrips(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    e.target.value = ''
+    setImporting(true)
+    try {
+      const rows = parseCSV(await file.text())
+      for (const row of rows) {
+        await apiPost('logbook', {
+          action: 'logTrip', userId,
+          departure: row.departure || '',
+          destination: row.destination || '',
+          date: row.date || new Date().toISOString().split('T')[0],
+          conditions: row.conditions || '',
+          notes: row.notes || '',
+          certCategory: row.certCategory || '',
+          hoursUnderway: parseFloat(row.hoursUnderway) || 0,
+          hoursMotoring: parseFloat(row.hoursMotoring) || 0,
+          nauticalMiles: parseFloat(row.nauticalMiles) || 0,
+          crew: parseInt(row.crew) || 1,
+          photos: []
+        })
+      }
+      loadTrips()
+    } catch (e) {}
+    finally { setImporting(false) }
+  }
+
   const inp = {
     width: '100%', padding: '10px 12px', borderRadius: '8px',
     border: '0.5px solid rgba(0,0,0,0.2)', fontSize: '14px',
@@ -85,12 +132,23 @@ export default function Logbook({ userId }) {
     <div>
       <div style={{ background: '#0c2a4a', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ color: '#fff', fontSize: '17px', fontWeight: '600' }}>Trip Logbook</div>
-        <button onClick={() => { setShowForm(!showForm); setPendingPhotos([]) }} style={{
-          background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
-          color: '#fff', padding: '7px 14px', borderRadius: '20px', fontSize: '13px'
-        }}>
-          {showForm ? 'Cancel' : '+ Log trip'}
-        </button>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <button onClick={downloadTrips} disabled={!trips.length} style={{
+            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.25)',
+            color: '#fff', padding: '7px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer'
+          }}>⬇ CSV</button>
+          <button onClick={() => csvRef.current.click()} disabled={importing} style={{
+            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.25)',
+            color: '#fff', padding: '7px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer'
+          }}>{importing ? '...' : '⬆ CSV'}</button>
+          <input ref={csvRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={importTrips} />
+          <button onClick={() => { setShowForm(!showForm); setPendingPhotos([]) }} style={{
+            background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
+            color: '#fff', padding: '7px 14px', borderRadius: '20px', fontSize: '13px'
+          }}>
+            {showForm ? 'Cancel' : '+ Log trip'}
+          </button>
+        </div>
       </div>
 
       {stats && (
