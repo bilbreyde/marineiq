@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { apiPost, uploadPhoto } from '../api'
 import { downloadCSV, parseCSV } from '../csvUtils'
+import { useVessel } from '../contexts/VesselContext'
 
 export default function Logbook({ userId }) {
+  const { vessel } = useVessel()
+  const vesselId = vessel?.id
   const [trips, setTrips] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -19,12 +22,12 @@ export default function Logbook({ userId }) {
     crew: 1, conditions: '', notes: '', certCategory: ''
   })
 
-  useEffect(() => { loadTrips() }, [])
+  useEffect(() => { if (vesselId) loadTrips() }, [vesselId])
 
   async function loadTrips() {
     setLoading(true)
     try {
-      const data = await apiPost('logbook', { action: 'getTrips', userId })
+      const data = await apiPost('logbook', { action: 'getTrips', userId, vesselId })
       setTrips(data.trips || [])
       setStats(data.stats || null)
     } catch (e) {}
@@ -52,7 +55,7 @@ export default function Logbook({ userId }) {
       const photoUrls = await Promise.all(pendingPhotos.map(p => uploadPhoto(userId, p.file)))
       await apiPost('logbook', {
         action: 'logTrip',
-        userId,
+        userId, vesselId,
         departure: form.departure,
         destination: form.destination,
         date: form.date,
@@ -103,7 +106,7 @@ export default function Logbook({ userId }) {
       const rows = parseCSV(await file.text())
       for (const row of rows) {
         await apiPost('logbook', {
-          action: 'logTrip', userId,
+          action: 'logTrip', userId, vesselId,
           departure: row.departure || '',
           destination: row.destination || '',
           date: row.date || new Date().toISOString().split('T')[0],

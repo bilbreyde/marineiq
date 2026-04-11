@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { apiPost, uploadPhoto } from '../api'
 import Parts from './Parts'
 import { downloadCSV, parseCSV } from '../csvUtils'
+import { useVessel } from '../contexts/VesselContext'
 
 const CATEGORIES = ['Engine', 'Electrical', 'Rigging', 'Hull', 'Fuel system', 'Plumbing', 'Safety gear', 'Navigation', 'Other']
 
@@ -30,6 +31,8 @@ const catColors = {
 }
 
 export default function Maintenance({ userId }) {
+  const { vessel } = useVessel()
+  const vesselId = vessel?.id
   const [tab, setTab] = useState('log')
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
@@ -46,12 +49,12 @@ export default function Maintenance({ userId }) {
     cost: '', laborHours: '', technician: 'Owner', notes: ''
   })
 
-  useEffect(() => { loadEntries() }, [])
+  useEffect(() => { if (vesselId) loadEntries() }, [vesselId])
 
   async function loadEntries() {
     setLoading(true)
     try {
-      const data = await apiPost('logbook', { action: 'getMaintenance', userId })
+      const data = await apiPost('logbook', { action: 'getMaintenance', userId, vesselId })
       setEntries(data.entries || [])
     } catch (e) {}
     finally { setLoading(false) }
@@ -78,7 +81,7 @@ export default function Maintenance({ userId }) {
       const photoUrls = await Promise.all(pendingPhotos.map(p => uploadPhoto(userId, p.file)))
       await apiPost('logbook', {
         action: 'logMaintenance',
-        userId,
+        userId, vesselId,
         description: form.description,
         category: form.category,
         date: form.date,
@@ -127,7 +130,7 @@ export default function Maintenance({ userId }) {
       const rows = parseCSV(await file.text())
       for (const row of rows) {
         await apiPost('logbook', {
-          action: 'logMaintenance', userId,
+          action: 'logMaintenance', userId, vesselId,
           description: row.description || '',
           category: row.category || 'Engine',
           date: row.date || new Date().toISOString().split('T')[0],

@@ -1,10 +1,15 @@
 const BASE = 'https://func-marineiq-prod.azurewebsites.net/api'
 const KEY = import.meta.env.VITE_API_KEY || ''
+const TOKEN_KEY = 'marineiq_token'
 
 export async function apiPost(endpoint, body) {
+  const token = localStorage.getItem(TOKEN_KEY) || ''
   const res = await fetch(`${BASE}/${endpoint}?code=${KEY}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
     body: JSON.stringify(body)
   })
   return res.json()

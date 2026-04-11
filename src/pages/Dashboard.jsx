@@ -1,21 +1,25 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiPost } from '../api'
+import { useVessel } from '../contexts/VesselContext'
 
 export default function Dashboard({ userId, profile }) {
   const [stats, setStats] = useState(null)
   const [alerts, setAlerts] = useState([])
   const navigate = useNavigate()
+  const { vessel } = useVessel()
+  const vesselId = vessel?.id
 
   useEffect(() => {
-    apiPost('logbook', { action: 'getTrips', userId })
+    if (!vesselId) return
+    apiPost('logbook', { action: 'getTrips', userId, vesselId })
       .then(d => setStats(d.stats))
       .catch(() => {})
-  }, [userId])
+  }, [vesselId])
 
   useEffect(() => {
-    if (stats?.totalHoursMotoring) {
-      apiPost('logbook', { action: 'checkAlerts', userId, currentEngineHours: stats.totalHoursMotoring })
+    if (stats?.totalHoursMotoring && vesselId) {
+      apiPost('logbook', { action: 'checkAlerts', userId, vesselId, currentEngineHours: stats.totalHoursMotoring })
         .then(d => setAlerts(d.alerts || []))
         .catch(() => {})
     }
@@ -28,8 +32,10 @@ export default function Dashboard({ userId, profile }) {
     { label: 'Ask Captain', icon: '🧭', path: '/chat', color: '#FCEBEB' },
   ]
 
-  const vesselName = profile?.vesselName || 'My vessel'
-  const vesselSub = [profile?.make, profile?.model, profile?.year].filter(Boolean).join(' ')
+  const vesselName = vessel?.name || profile?.vesselName || 'My vessel'
+  const vesselSub = vessel
+    ? [vessel.make, vessel.model, vessel.year].filter(Boolean).join(' ')
+    : [profile?.make, profile?.model, profile?.year].filter(Boolean).join(' ')
 
   return (
     <div>
@@ -93,12 +99,15 @@ function StatBox({ label, value }) {
 
 function RecentActivity({ userId }) {
   const [trips, setTrips] = useState([])
+  const { vessel } = useVessel()
+  const vesselId = vessel?.id
 
   useEffect(() => {
-    apiPost('logbook', { action: 'getTrips', userId })
+    if (!vesselId) return
+    apiPost('logbook', { action: 'getTrips', userId, vesselId })
       .then(d => setTrips(d.trips?.slice(0, 3) || []))
       .catch(() => {})
-  }, [userId])
+  }, [vesselId])
 
   if (!trips.length) return (
     <div style={{ textAlign: 'center', padding: '32px 16px', color: '#888780', fontSize: '13px' }}>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { apiPost, uploadPhoto } from '../api'
 import { downloadCSV, parseCSV } from '../csvUtils'
+import { useVessel } from '../contexts/VesselContext'
 
 const CATEGORIES = ['Engine', 'Electrical', 'Rigging', 'Hull', 'Fuel system', 'Plumbing', 'Safety gear', 'Navigation', 'Other']
 
@@ -17,6 +18,8 @@ const catColors = {
 }
 
 export default function Parts({ userId }) {
+  const { vessel } = useVessel()
+  const vesselId = vessel?.id
   const [parts, setParts] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -31,12 +34,12 @@ export default function Parts({ userId }) {
     category: 'Engine', installDate: new Date().toISOString().split('T')[0], notes: ''
   })
 
-  useEffect(() => { loadParts() }, [])
+  useEffect(() => { if (vesselId) loadParts() }, [vesselId])
 
   async function loadParts() {
     setLoading(true)
     try {
-      const data = await apiPost('logbook', { action: 'getParts', userId })
+      const data = await apiPost('logbook', { action: 'getParts', userId, vesselId })
       setParts(data.parts || [])
     } catch (e) {}
     finally { setLoading(false) }
@@ -63,7 +66,7 @@ export default function Parts({ userId }) {
       const photoUrls = await Promise.all(pendingPhotos.map(p => uploadPhoto(userId, p.file)))
       await apiPost('logbook', {
         action: 'logPart',
-        userId,
+        userId, vesselId,
         name: form.name,
         manufacturer: form.manufacturer,
         partNumber: form.partNumber,
@@ -104,7 +107,7 @@ export default function Parts({ userId }) {
       const rows = parseCSV(await file.text())
       for (const row of rows) {
         await apiPost('logbook', {
-          action: 'logPart', userId,
+          action: 'logPart', userId, vesselId,
           name: row.name || '',
           manufacturer: row.manufacturer || '',
           partNumber: row.partNumber || '',
