@@ -49,3 +49,10 @@ jobs:
             --name func-marineiq-prod \
             --resource-group rg-marineiq-prod-eastus2 \
             --src api.zip
+      - name: Sync function triggers
+        run: |
+          SUB=$(az account show --query id -o tsv)
+          az rest --method post \
+            --url "https://management.azure.com/subscriptions/${SUB}/resourceGroups/rg-marineiq-prod-eastus2/providers/Microsoft.Web/sites/func-marineiq-prod/syncfunctiontriggers?api-version=2022-03-01"
+      - name: Restart function app
+        run: az functionapp restart --name func-marineiq-prod --resource-group rg-marineiq-prod-eastus2
