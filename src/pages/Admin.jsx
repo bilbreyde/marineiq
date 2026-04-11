@@ -14,6 +14,7 @@ function AdminPanel() {
   const [users, setUsers] = useState([])
   const [vessels, setVessels] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState(null)
 
@@ -23,14 +24,19 @@ function AdminPanel() {
 
   async function loadAll() {
     setLoading(true)
+    setError(null)
     try {
       const [ud, vd] = await Promise.all([
         apiPost('admin', { action: 'listUsers' }),
         apiPost('admin', { action: 'listVessels' })
       ])
+      if (ud.error) throw new Error(`Users: ${ud.error}`)
+      if (vd.error) throw new Error(`Vessels: ${vd.error}`)
       setUsers(ud.users || [])
       setVessels(vd.vessels || [])
-    } catch (e) {}
+    } catch (e) {
+      setError(e.message)
+    }
     finally { setLoading(false) }
   }
 
@@ -97,6 +103,10 @@ function AdminPanel() {
       <div style={{ padding: '0 16px 32px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '48px', color: '#888780', fontSize: '13px' }}>Loading...</div>
+        ) : error ? (
+          <div style={{ padding: '24px', background: '#FEF2F2', borderRadius: '10px', border: '1px solid #FCA5A5', color: '#991B1B', fontSize: '13px' }}>
+            {error}
+          </div>
         ) : tab === 'users' ? (
           <>
             <div style={{ fontSize: '11px', color: '#888780', marginBottom: '10px', fontWeight: '600' }}>
