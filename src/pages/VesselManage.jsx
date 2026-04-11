@@ -370,6 +370,19 @@ function SettingsTab({ vessel, refresh }) {
       <SectionLabel>Vessel details</SectionLabel>
       {field('name', 'Vessel name')}
       <div style={{ marginBottom: '12px' }}>
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: '#555', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
+          Hull ID (HIN)
+        </label>
+        <input
+          type="text" value={form.hullId || ''} maxLength={12} placeholder="ABC12345D101"
+          onChange={e => setForm(f => ({ ...f, hullId: e.target.value.toUpperCase().replace(/[\s-]/g, '') }))}
+          style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '0.5px solid rgba(0,0,0,0.2)', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'monospace' }}
+        />
+        <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
+          12-character number stamped on your transom. Globally unique — prevents duplicate registrations.
+        </div>
+      </div>
+      <div style={{ marginBottom: '12px' }}>
         <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: '#555', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>Type</label>
         <select value={form.type || 'Sailboat'} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
           style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '0.5px solid rgba(0,0,0,0.2)', fontSize: '14px', background: '#fff', boxSizing: 'border-box' }}>

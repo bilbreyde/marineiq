@@ -30,6 +30,7 @@ export default function ProfileSetup({ user, onComplete }) {
   const [form, setForm] = useState({
     vesselName: '',
     vesselType: 'Sailboat',
+    hullId: '',
     make: '',
     model: '',
     year: '',
@@ -94,6 +95,18 @@ export default function ProfileSetup({ user, onComplete }) {
               <option>Center console</option>
               <option>Other</option>
             </select>
+          </Field>
+          <Field label="Hull ID (HIN)">
+            <input
+              style={{ ...inp, fontFamily: 'monospace' }}
+              placeholder="ABC12345D101"
+              maxLength={12}
+              value={form.hullId}
+              onChange={e => set('hullId', e.target.value.toUpperCase().replace(/[\s-]/g, ''))}
+            />
+            <div style={{ fontSize: '10px', color: '#888780', marginTop: '3px' }}>
+              Optional — 12-character number on your transom. Prevents duplicate vessel registrations.
+            </div>
           </Field>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <Field label="Make">

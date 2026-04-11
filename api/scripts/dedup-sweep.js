@@ -39,6 +39,29 @@ async function fetchAll(containerName, query, params = []) {
   return resources
 }
 
+async function mergeDuplicateVessel(db, activeMems, allInvites, allRequests, keep, dup) {
+  const dupMems = activeMems.filter(m => m.vesselId === dup.id)
+  for (const dm of dupMems) {
+    const alreadyMember = activeMems.find(m => m.vesselId === keep.id && m.userId === dm.userId)
+    if (!alreadyMember) {
+      const newMem = { ...dm, id: `mem-${keep.id}-${dm.userId}`, vesselId: keep.id }
+      await db.container('vesselMemberships').items.upsert(newMem)
+      console.log(`     Moved membership ${dm.userId} → ${keep.id}`)
+    }
+    try { await db.container('vesselMemberships').item(dm.id, dup.id).delete() } catch {}
+  }
+  // Re-point invites and requests
+  for (const inv of allInvites.filter(i => i.vesselId === dup.id)) {
+    await db.container('vesselInvites').items.upsert({ ...inv, vesselId: keep.id })
+    try { await db.container('vesselInvites').item(inv.id, dup.id).delete() } catch {}
+  }
+  for (const req of allRequests.filter(r => r.vesselId === dup.id)) {
+    await db.container('vesselJoinRequests').items.upsert({ ...req, vesselId: keep.id })
+    try { await db.container('vesselJoinRequests').item(req.id, dup.id).delete() } catch {}
+  }
+  await db.container('vessels').item(dup.id, dup.id).delete()
+}
+
 function group(arr, key) {
   const map = {}
   for (const item of arr) {
@@ -109,9 +132,34 @@ async function main() {
   }
   if (orphanCount === 0) ok('No orphaned vessels.')
 
-  // ── 3. Duplicate vessels per captain (same normalized name) ─────────────────
+  // ── 3a. Duplicate hull IDs (definitive dedup — same physical boat) ──────────
 
-  console.log('\n── Check 2: Duplicate vessel names per captain ───')
+  console.log('\n── Check 2a: Duplicate Hull IDs (HIN) ───────────')
+  const vesselsByHullId = group(allVessels.filter(v => v.hullId), 'hullId')
+  let hullDupCount = 0
+
+  for (const [hullId, dups] of Object.entries(vesselsByHullId)) {
+    if (dups.length > 1) {
+      hullDupCount++
+      dups.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+      const keep = dups[0]
+      const remove = dups.slice(1)
+      issue(`Hull ID "${hullId}" appears on ${dups.length} vessels (same physical boat):`)
+      console.log(`     Keep  : "${keep.name}" ${keep.id} (created ${keep.createdAt})`)
+      for (const dup of remove) {
+        console.log(`     Remove: "${dup.name}" ${dup.id} (created ${dup.createdAt})`)
+        if (FIX) {
+          await mergeDuplicateVessel(db, activeMems, allInvites, allRequests, keep, dup)
+          fixed(`Merged duplicate vessel ${dup.id} into ${keep.id}`)
+        }
+      }
+    }
+  }
+  if (hullDupCount === 0) ok('No duplicate Hull IDs.')
+
+  // ── 3b. Duplicate vessels per captain (same normalized name) ─────────────────
+
+  console.log('\n── Check 2b: Duplicate vessel names per captain ──')
   const captainVessels = group(allVessels, 'captainId')
   let nameCount = 0
 
@@ -129,22 +177,8 @@ async function main() {
         for (const dup of remove) {
           console.log(`     Remove: ${dup.id} (created ${dup.createdAt})`)
           if (FIX) {
-            // Re-assign all memberships from dup vessel to keep vessel
-            const dupMems = activeMems.filter(m => m.vesselId === dup.id)
-            for (const dm of dupMems) {
-              // Only add if not already a member of keep vessel
-              const alreadyMember = activeMems.find(m => m.vesselId === keep.id && m.userId === dm.userId)
-              if (!alreadyMember) {
-                const newMem = { ...dm, id: `mem-${keep.id}-${dm.userId}`, vesselId: keep.id }
-                await db.container('vesselMemberships').items.upsert(newMem)
-                console.log(`     Moved membership ${dm.userId} → ${keep.id}`)
-              }
-              // Remove membership from dup vessel
-              await db.container('vesselMemberships').item(dm.id, dup.id).delete()
-            }
-            // Delete the duplicate vessel
-            await db.container('vessels').item(dup.id, dup.id).delete()
-            fixed(`Removed duplicate vessel ${dup.id}`)
+            await mergeDuplicateVessel(db, activeMems, allInvites, allRequests, keep, dup)
+            fixed(`Merged duplicate vessel ${dup.id} into ${keep.id}`)
           }
         }
       }
@@ -238,6 +272,18 @@ async function main() {
   }
 
   // ── 8. Trips/maintenance without vesselId (legacy) ──────────────────────────
+
+  // ── 6b. Vessels without a Hull ID (info) ───────────────────────────────────
+
+  console.log('\n── Check 6b: Vessels missing Hull ID (info only) ─')
+  const noHullId = allVessels.filter(v => !v.hullId)
+  if (noHullId.length > 0) {
+    console.log(`  ℹ️  ${noHullId.length} vessel(s) have no Hull ID:`)
+    for (const v of noHullId) console.log(`     "${v.name}" (${v.id})`)
+    console.log('     Add via Settings tab in /vessel — prevents duplicate registrations.')
+  } else {
+    ok('All vessels have a Hull ID.')
+  }
 
   console.log('\n── Check 7: Legacy documents without vesselId (info only)')
 

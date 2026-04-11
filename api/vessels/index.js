@@ -68,14 +68,26 @@ module.exports = async function (context, req) {
 
     // ── create ────────────────────────────────────────────────────────────────
     if (action === 'create') {
-      const { name, type, make, model, year, homePort, lengthFt, beamFt, draftFt, hullSpeed, engine, mmsi, callSign, emergencyContact } = req.body
+      const { name, type, make, model, year, homePort, lengthFt, beamFt, draftFt, hullSpeed, engine, mmsi, callSign, emergencyContact, hullId } = req.body
       if (!name || !name.trim()) {
         err(context, 400, 'Vessel name is required'); return
       }
 
       const nameLower = name.trim().toLowerCase()
+      const normalizedHullId = hullId ? hullId.trim().toUpperCase().replace(/[\s-]/g, '') : ''
 
-      // Enforce uniqueness: captain cannot have two vessels with the same normalized name
+      // Hull ID is globally unique — no two vessels can share one
+      if (normalizedHullId) {
+        const { resources: hullDups } = await vessels.items.query({
+          query: 'SELECT c.id, c.name FROM c WHERE c.hullId = @hullId',
+          parameters: [{ name: '@hullId', value: normalizedHullId }]
+        }).fetchAll()
+        if (hullDups.length > 0) {
+          err(context, 409, `Hull ID already registered to vessel "${hullDups[0].name}"`); return
+        }
+      }
+
+      // Captain cannot have two vessels with the same normalized name
       const { resources: existing } = await vessels.items.query({
         query: 'SELECT c.id FROM c WHERE c.captainId = @captainId AND c.nameLower = @nameLower',
         parameters: [{ name: '@captainId', value: userId }, { name: '@nameLower', value: nameLower }]
@@ -90,6 +102,7 @@ module.exports = async function (context, req) {
         id: vesselId,
         name: name.trim(),
         nameLower,
+        hullId: normalizedHullId,
         type: type || 'Sailboat',
         captainId: userId,
         make: make || '',
@@ -141,7 +154,7 @@ module.exports = async function (context, req) {
 
     // ── update ────────────────────────────────────────────────────────────────
     if (action === 'update') {
-      const { vesselId, name, type, make, model, year, homePort, lengthFt, beamFt, draftFt, hullSpeed, engine, mmsi, callSign, emergencyContact } = req.body
+      const { vesselId, name, type, make, model, year, homePort, lengthFt, beamFt, draftFt, hullSpeed, engine, mmsi, callSign, emergencyContact, hullId } = req.body
       const mem = await getMembership(vesselId, userId)
       if (!mem || mem.role !== 'captain') { err(context, 403, 'Only the captain can edit vessel details'); return }
 
@@ -149,8 +162,22 @@ module.exports = async function (context, req) {
       if (!existing) { err(context, 404, 'Vessel not found'); return }
 
       const nameLower = (name || existing.name).trim().toLowerCase()
+      const normalizedHullId = hullId !== undefined
+        ? hullId.trim().toUpperCase().replace(/[\s-]/g, '')
+        : (existing.hullId || '')
 
-      // Uniqueness check if name changed
+      // Hull ID global uniqueness check (exclude self)
+      if (normalizedHullId && normalizedHullId !== existing.hullId) {
+        const { resources: hullDups } = await vessels.items.query({
+          query: 'SELECT c.id, c.name FROM c WHERE c.hullId = @hullId',
+          parameters: [{ name: '@hullId', value: normalizedHullId }]
+        }).fetchAll()
+        if (hullDups.some(d => d.id !== vesselId)) {
+          err(context, 409, `Hull ID already registered to vessel "${hullDups.find(d => d.id !== vesselId).name}"`); return
+        }
+      }
+
+      // Name uniqueness check (exclude self)
       if (nameLower !== existing.nameLower) {
         const { resources: dups } = await vessels.items.query({
           query: 'SELECT c.id FROM c WHERE c.captainId = @captainId AND c.nameLower = @nameLower',
@@ -165,6 +192,7 @@ module.exports = async function (context, req) {
         ...existing,
         name: (name || existing.name).trim(),
         nameLower,
+        hullId: normalizedHullId,
         type: type ?? existing.type,
         make: make ?? existing.make,
         model: model ?? existing.model,
@@ -238,6 +266,7 @@ module.exports = async function (context, req) {
         id: vesselId,
         name: vesselName,
         nameLower: vesselName.toLowerCase(),
+        hullId: profile?.hullId ? profile.hullId.trim().toUpperCase().replace(/[\s-]/g, '') : '',
         type: profile?.vesselType || 'Sailboat',
         captainId: userId,
         make: profile?.make || '',
