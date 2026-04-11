@@ -40,14 +40,21 @@ const db     = client.database('marineiq')
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 function isOAuth(user) {
-  // Email/password accounts have authType === 'email' and a bcrypt password hash.
-  // OAuth accounts (SWA EasyAuth / manual OAuth migration) have provider set to
-  // 'github' or 'google', or have a userId that looks like 'github|…' / 'google|…',
-  // or simply have no password hash at all and authType !== 'email'.
-  if (user.authType === 'email' && user.password) return false
+  // Our email-registration code always generates userId = 'email-{timestamp}-{random}'.
+  // Trust that prefix above all else — even if authType/password are missing (bug victims).
+  if (/^email-\d+-/.test(user.userId || '')) return false
+
+  // Explicit email/password markers
+  if (user.authType === 'email') return false
+  if (/^email$/i.test(user.provider || '')) return false
+
+  // Definitive OAuth markers
   if (/^(github|google|aad)\|/i.test(user.userId || '')) return true
   if (/^(github|google|aad)$/i.test(user.provider || '')) return true
-  if (!user.password && user.authType !== 'email') return true
+
+  // Fallback: no password AND no email-style userId — likely OAuth
+  if (!user.password) return true
+
   return false
 }
 
