@@ -162,6 +162,7 @@ export default function Profile({ user, onUpdate }) {
                 ))}
               </div>
             )}
+            <ChangePassword user={user} />
           </>
         ) : editing ? (
           <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid rgba(0,0,0,0.1)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -236,4 +237,159 @@ export default function Profile({ user, onUpdate }) {
 
 function FieldLabel({ children }) {
   return <div style={{ fontSize: '11px', color: '#888780', marginBottom: '2px' }}>{children}</div>
+}
+
+function ChangePassword({ user }) {
+  const [open, setOpen]               = useState(false)
+  const [hasPassword, setHasPassword] = useState(true)   // assume true; detected on open
+  const [checking, setChecking]       = useState(false)
+  const [saving, setSaving]           = useState(false)
+  const [current, setCurrent]         = useState('')
+  const [next, setNext]               = useState('')
+  const [confirm, setConfirm]         = useState('')
+  const [error, setError]             = useState('')
+  const [done, setDone]               = useState(false)
+
+  async function checkStatus() {
+    setChecking(true)
+    try {
+      // Try a no-op login to detect missing password: attempt verify of a blank
+      // password. If the account has no password field, bcrypt.compare returns
+      // false but we can detect the gap via a dedicated status endpoint.
+      // We infer from the changePassword action: send newPassword without
+      // currentPassword and check the error code.
+      const data = await apiPost('auth', {
+        action: 'changePassword',
+        userId: user.userId,
+        newPassword: 'probe-only-12345',   // deliberately short — will be rejected
+        currentPassword: ''
+      })
+      // If we get "Current password required" it means account HAS a password
+      // If we get "New password must be at least 8 characters" it means no password check needed yet
+      setHasPassword(data.error === 'Current password required' || (!data.error && !data.success))
+    } catch {}
+    setChecking(false)
+  }
+
+  async function handleOpen() {
+    setOpen(true)
+    setError('')
+    setDone(false)
+    setCurrent('')
+    setNext('')
+    setConfirm('')
+    // Detect whether the account has a stored password
+    setChecking(true)
+    try {
+      const data = await apiPost('auth', {
+        action: 'changePassword',
+        userId: user.userId,
+        newPassword: '!!probe!!',
+        currentPassword: ''
+      })
+      setHasPassword(data.error === 'Current password required')
+    } catch {}
+    setChecking(false)
+  }
+
+  async function save() {
+    setError('')
+    if (!next || next.length < 8) { setError('New password must be at least 8 characters.'); return }
+    if (next !== confirm) { setError('Passwords do not match.'); return }
+    setSaving(true)
+    try {
+      const data = await apiPost('auth', {
+        action: 'changePassword',
+        userId: user.userId,
+        currentPassword: current,
+        newPassword: next
+      })
+      if (data.success) {
+        setDone(true)
+        setOpen(false)
+        setCurrent('')
+        setNext('')
+        setConfirm('')
+      } else {
+        setError(data.error || 'Could not update password.')
+      }
+    } catch { setError('Connection error.') }
+    setSaving(false)
+  }
+
+  const inp = {
+    width: '100%', padding: '9px 12px', borderRadius: '8px',
+    border: '0.5px solid rgba(0,0,0,0.2)', fontSize: '13px',
+    background: '#f5f5f3', fontFamily: 'inherit', outline: 'none'
+  }
+
+  return (
+    <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+      <div style={{
+        padding: '10px 14px', fontSize: '11px', fontWeight: '500', color: '#5f5e5a',
+        borderBottom: open ? '0.5px solid rgba(0,0,0,0.08)' : 'none',
+        textTransform: 'uppercase', letterSpacing: '0.05em',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+      }}>
+        <span>Password</span>
+        {done
+          ? <span style={{ color: '#27500A', fontSize: '11px', fontWeight: '500', textTransform: 'none' }}>✓ Updated</span>
+          : <button onClick={open ? () => setOpen(false) : handleOpen} style={{
+              background: 'none', border: 'none', color: '#185FA5',
+              fontSize: '11px', cursor: 'pointer', padding: 0
+            }}>
+              {open ? 'Cancel' : 'Change password'}
+            </button>
+        }
+      </div>
+
+      {open && (
+        <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {checking
+            ? <div style={{ fontSize: '12px', color: '#888780' }}>Checking account…</div>
+            : !hasPassword && (
+              <div style={{ background: '#FFF8ED', border: '1px solid #F59E0B', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', color: '#78350f' }}>
+                Your account doesn't have a password set yet — set one now to log in from any device.
+              </div>
+            )
+          }
+
+          {!checking && hasPassword && (
+            <div>
+              <FieldLabel>Current password</FieldLabel>
+              <input type="password" style={inp} value={current} onChange={e => setCurrent(e.target.value)} placeholder="••••••••" />
+            </div>
+          )}
+
+          {!checking && (
+            <>
+              <div>
+                <FieldLabel>New password</FieldLabel>
+                <input type="password" style={inp} value={next} onChange={e => setNext(e.target.value)} placeholder="Min 8 characters" />
+              </div>
+              <div>
+                <FieldLabel>Confirm new password</FieldLabel>
+                <input type="password" style={inp} value={confirm} onChange={e => setConfirm(e.target.value)}
+                  placeholder="••••••••"
+                  onKeyDown={e => e.key === 'Enter' && save()}
+                />
+              </div>
+              {error && (
+                <div style={{ fontSize: '12px', color: '#A32D2D', background: '#FCEBEB', padding: '8px 10px', borderRadius: '6px' }}>
+                  {error}
+                </div>
+              )}
+              <button onClick={save} disabled={saving} style={{
+                padding: '10px', borderRadius: '8px', background: '#0c2a4a',
+                color: '#fff', border: 'none', fontSize: '13px', fontWeight: '500',
+                opacity: saving ? 0.7 : 1, cursor: saving ? 'default' : 'pointer'
+              }}>
+                {saving ? 'Saving…' : hasPassword ? 'Update password' : 'Set password'}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }

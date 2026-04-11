@@ -1,57 +1,72 @@
-/**
- * Auth hook — uses Azure Static Web Apps built-in OAuth.
- *
- * Login:  redirect to /.auth/login/google  or  /.auth/login/github
- * Identity: call /.auth/me — returns a stable userId tied to the OAuth account.
- *           Same Google/GitHub account → same userId on every device.
- * Logout: redirect to /.auth/logout
- *
- * The user object is also cached in localStorage so apiPost can attach
- * callerEmail / callerName to every request without needing React context.
- */
-
 import { useState, useEffect } from 'react'
 
-const USER_KEY = 'marineiq_user'
+const API = 'https://func-marineiq-prod.azurewebsites.net/api'
+const KEY = import.meta.env.VITE_API_KEY || ''
+const TOKEN_KEY = 'marineiq_token'
 
 export function useAuth() {
-  const [user, setUser]     = useState(null)
+  const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/.auth/me')
-      .then(r => r.json())
-      .then(data => {
-        const p = data.clientPrincipal
-        if (p) {
-          // SWA includes a 'name' claim for Google — use it when present.
-          const nameClaim = (p.claims || []).find(
-            c => c.typ === 'name' ||
-                 c.typ === 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'
-          )
-          const u = {
-            userId:   p.userId,
-            email:    p.userDetails  || '',
-            name:     nameClaim?.val || p.userDetails?.split('@')[0] || 'Sailor',
-            provider: p.identityProvider,
-          }
-          setUser(u)
-          // Cache so apiPost can enrich requests without React context
-          localStorage.setItem(USER_KEY, JSON.stringify(u))
-        } else {
-          localStorage.removeItem(USER_KEY)
-          setUser(null)
-        }
-      })
-      .catch(() => { setUser(null) })
-      .finally(() => setLoading(false))
+    verify()
   }, [])
 
-  function logout() {
-    localStorage.removeItem(USER_KEY)
-    setUser(null)
-    window.location.href = '/.auth/logout?post_logout_redirect_uri=/login.html'
+async function verify() {
+  const token = localStorage.getItem(TOKEN_KEY)
+  if (!token) { setLoading(false); return }
+  try {
+    const res = await fetch(`${API}/auth?code=${KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify', token })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.userId) setUser(data)
+      else localStorage.removeItem(TOKEN_KEY)
+    } else {
+      localStorage.removeItem(TOKEN_KEY)
+    }
+  } catch (e) {}
+  finally { setLoading(false) }
+}
+
+  async function login(email, password) {
+    const res = await fetch(`${API}/auth?code=${KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', email, password })
+    })
+    const data = await res.json()
+    if (res.ok && data.userId) {
+      localStorage.setItem(TOKEN_KEY, data.token)
+      setUser({ userId: data.userId, name: data.name, email: data.email, provider: 'email' })
+      return { success: true }
+    }
+    return { success: false, error: data.error }
   }
 
-  return { user, loading, logout }
+  async function register(email, password, name) {
+    const res = await fetch(`${API}/auth?code=${KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'register', email, password, name })
+    })
+    const data = await res.json()
+    if (res.ok && data.userId) {
+      localStorage.setItem(TOKEN_KEY, data.token)
+      setUser({ userId: data.userId, name: data.name, email: data.email, provider: 'email' })
+      return { success: true }
+    }
+    return { success: false, error: data.error }
+  }
+
+  async function logout() {
+    localStorage.removeItem(TOKEN_KEY)
+    setUser(null)
+    window.location.href = '/login.html'
+  }
+
+  return { user, loading, login, register, logout }
 }
