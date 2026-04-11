@@ -29,6 +29,8 @@ export default function Parts({ userId }) {
   const csvRef = useRef()
   const [importing, setImporting] = useState(false)
   const [pendingPhotos, setPendingPhotos] = useState([])
+  const [existingPhotos, setExistingPhotos] = useState([])
+  const [editingPart, setEditingPart] = useState(null)
   const [form, setForm] = useState({
     name: '', manufacturer: '', partNumber: '',
     category: 'Engine', installDate: new Date().toISOString().split('T')[0], notes: ''
@@ -59,30 +61,67 @@ export default function Parts({ userId }) {
     })
   }
 
+  function startEdit(part) {
+    setEditingPart(part)
+    setForm({
+      name: part.name || '',
+      manufacturer: part.manufacturer || '',
+      partNumber: part.partNumber || '',
+      category: part.category || 'Engine',
+      installDate: part.installDate || new Date().toISOString().split('T')[0],
+      notes: part.notes || ''
+    })
+    setExistingPhotos(part.photos || [])
+    setPendingPhotos([])
+    setShowForm(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function cancelForm() {
+    setShowForm(false)
+    setEditingPart(null)
+    setPendingPhotos([])
+    setExistingPhotos([])
+    setForm({ name: '', manufacturer: '', partNumber: '', category: 'Engine', installDate: new Date().toISOString().split('T')[0], notes: '' })
+  }
+
   async function savePart() {
     if (!form.name) return
     setSaving(true)
     try {
-      const photoUrls = await Promise.all(pendingPhotos.map(p => uploadPhoto(userId, p.file)))
-      await apiPost('logbook', {
-        action: 'logPart',
-        userId, vesselId,
-        name: form.name,
-        manufacturer: form.manufacturer,
-        partNumber: form.partNumber,
-        category: form.category,
-        installDate: form.installDate,
-        notes: form.notes,
-        photos: photoUrls
-      })
-      setShowForm(false)
-      setPendingPhotos([])
-      setForm({
-        name: '', manufacturer: '', partNumber: '',
-        category: 'Engine', installDate: new Date().toISOString().split('T')[0], notes: ''
-      })
+      const newPhotoUrls = await Promise.all(pendingPhotos.map(p => uploadPhoto(userId, p.file)))
+      const photos = [...existingPhotos, ...newPhotoUrls]
+
+      if (editingPart) {
+        await apiPost('logbook', {
+          action: 'updatePart',
+          vesselId,
+          partId: editingPart.id,
+          partUserId: editingPart.userId,
+          name: form.name,
+          manufacturer: form.manufacturer,
+          partNumber: form.partNumber,
+          category: form.category,
+          installDate: form.installDate,
+          notes: form.notes,
+          photos
+        })
+      } else {
+        await apiPost('logbook', {
+          action: 'logPart',
+          userId, vesselId,
+          name: form.name,
+          manufacturer: form.manufacturer,
+          partNumber: form.partNumber,
+          category: form.category,
+          installDate: form.installDate,
+          notes: form.notes,
+          photos
+        })
+      }
+      cancelForm()
       loadParts()
-    } catch (e) {}
+    } catch (e) { alert(e.message || 'Save failed') }
     finally { setSaving(false) }
   }
 
@@ -156,7 +195,7 @@ export default function Parts({ userId }) {
             color: '#fff', padding: '7px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer'
           }}>{importing ? '...' : '⬆ CSV'}</button>
           <input ref={csvRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={importParts} />
-          <button onClick={() => { setShowForm(!showForm); setPendingPhotos([]) }} style={{
+          <button onClick={() => { if (showForm) { cancelForm() } else { setShowForm(true) } }} style={{
             background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
             color: '#fff', padding: '7px 14px', borderRadius: '20px', fontSize: '13px'
           }}>
@@ -167,7 +206,7 @@ export default function Parts({ userId }) {
 
       {showForm && (
         <div style={{ margin: '12px 16px', background: '#fff', borderRadius: '12px', border: '0.5px solid rgba(0,0,0,0.12)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ fontSize: '13px', fontWeight: '500', color: '#0c2a4a' }}>New part</div>
+          <div style={{ fontSize: '13px', fontWeight: '500', color: '#0c2a4a' }}>{editingPart ? 'Edit part' : 'New part'}</div>
           <div>
             <div style={{ fontSize: '11px', color: '#888780', marginBottom: '4px' }}>Part name</div>
             <input style={inp} placeholder="Racor 500 fuel filter" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
@@ -198,6 +237,21 @@ export default function Parts({ userId }) {
           </div>
           <div>
             <div style={{ fontSize: '11px', color: '#888780', marginBottom: '8px' }}>Photos</div>
+            {existingPhotos.length > 0 && (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                {existingPhotos.map((url, i) => (
+                  <div key={i} style={{ position: 'relative', width: '72px', height: '72px' }}>
+                    <img src={url} alt="" style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '8px' }} />
+                    <button onClick={() => setExistingPhotos(p => p.filter((_, j) => j !== i))} style={{
+                      position: 'absolute', top: '-6px', right: '-6px',
+                      width: '20px', height: '20px', borderRadius: '50%',
+                      background: '#A32D2D', color: '#fff', border: 'none',
+                      fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
             {pendingPhotos.length > 0 && (
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
                 {pendingPhotos.map((p, i) => (
@@ -226,7 +280,7 @@ export default function Parts({ userId }) {
             color: '#fff', border: 'none', fontSize: '14px', fontWeight: '500',
             opacity: saving ? 0.7 : 1
           }}>
-            {saving ? 'Uploading...' : 'Add to library'}
+            {saving ? 'Uploading...' : editingPart ? 'Save changes' : 'Add to library'}
           </button>
         </div>
       )}
@@ -295,6 +349,11 @@ export default function Parts({ userId }) {
                           </div>
                         )}
                       </div>
+                      <button onClick={() => startEdit(part)} style={{
+                        flexShrink: 0, padding: '6px 12px', borderRadius: '8px',
+                        background: '#f5f5f3', border: '0.5px solid rgba(0,0,0,0.15)',
+                        fontSize: '12px', color: '#5f5e5a', cursor: 'pointer'
+                      }}>Edit</button>
                     </div>
                   </div>
                 ))}

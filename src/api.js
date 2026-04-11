@@ -22,10 +22,13 @@ export async function uploadPhoto(userId, file) {
     filename: file.name,
     contentType: file.type
   })
-  await fetch(uploadUrl, {
+  const uploadRes = await fetch(uploadUrl, {
     method: 'PUT',
     headers: { 'x-ms-blob-type': 'BlockBlob', 'Content-Type': file.type },
     body: file
   })
+  if (!uploadRes.ok) {
+    throw new Error(`Photo upload failed: ${uploadRes.status} ${uploadRes.statusText}`)
+  }
   return publicUrl
 }

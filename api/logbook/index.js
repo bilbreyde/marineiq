@@ -191,6 +191,36 @@ module.exports = async function (context, req) {
         break
       }
 
+      case 'updatePart': {
+        if (!vesselId) { err(context, 400, 'vesselId required'); return }
+        await requireMembership(vesselId, userId, 'crew')
+
+        const { partId, partUserId } = req.body
+        if (!partId || !partUserId) { err(context, 400, 'partId and partUserId required'); return }
+
+        const container = database.container('parts')
+        const { resource: existing } = await container.item(partId, partUserId).read()
+        if (!existing) { err(context, 404, 'Part not found'); return }
+        if (existing.vesselId !== vesselId) { err(context, 403, 'Part does not belong to this vessel'); return }
+
+        const updated = {
+          ...existing,
+          name: req.body.name ?? existing.name,
+          manufacturer: req.body.manufacturer ?? existing.manufacturer,
+          partNumber: req.body.partNumber ?? existing.partNumber,
+          category: req.body.category ?? existing.category,
+          installDate: req.body.installDate ?? existing.installDate,
+          lastReplacedDate: req.body.lastReplacedDate ?? existing.lastReplacedDate,
+          notes: req.body.notes ?? existing.notes,
+          photos: req.body.photos ?? existing.photos,
+          updatedAt: new Date().toISOString()
+        }
+
+        const { resource } = await container.item(partId, partUserId).replace(updated)
+        context.res = { status: 200, headers: CORS, body: { success: true, part: resource } }
+        break
+      }
+
       case 'getParts': {
         if (!vesselId) { err(context, 400, 'vesselId required'); return }
         const mem = await requireMembership(vesselId, userId, 'crew')
