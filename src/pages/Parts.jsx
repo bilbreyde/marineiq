@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { apiPost } from '../api'
+import { apiPost, uploadPhoto } from '../api'
 import { downloadCSV, parseCSV } from '../csvUtils'
 
 const CATEGORIES = ['Engine', 'Electrical', 'Rigging', 'Hull', 'Fuel system', 'Plumbing', 'Safety gear', 'Navigation', 'Other']
@@ -22,8 +22,10 @@ export default function Parts({ userId }) {
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
+  const fileRef = useRef()
   const csvRef = useRef()
   const [importing, setImporting] = useState(false)
+  const [pendingPhotos, setPendingPhotos] = useState([])
   const [form, setForm] = useState({
     name: '', manufacturer: '', partNumber: '',
     category: 'Engine', installDate: new Date().toISOString().split('T')[0], notes: ''
@@ -40,10 +42,25 @@ export default function Parts({ userId }) {
     finally { setLoading(false) }
   }
 
+  function onFilesSelected(e) {
+    const files = Array.from(e.target.files)
+    const previews = files.map(f => ({ file: f, preview: URL.createObjectURL(f) }))
+    setPendingPhotos(p => [...p, ...previews])
+    e.target.value = ''
+  }
+
+  function removePhoto(index) {
+    setPendingPhotos(p => {
+      URL.revokeObjectURL(p[index].preview)
+      return p.filter((_, i) => i !== index)
+    })
+  }
+
   async function savePart() {
     if (!form.name) return
     setSaving(true)
     try {
+      const photoUrls = await Promise.all(pendingPhotos.map(p => uploadPhoto(userId, p.file)))
       await apiPost('logbook', {
         action: 'logPart',
         userId,
@@ -52,9 +69,11 @@ export default function Parts({ userId }) {
         partNumber: form.partNumber,
         category: form.category,
         installDate: form.installDate,
-        notes: form.notes
+        notes: form.notes,
+        photos: photoUrls
       })
       setShowForm(false)
+      setPendingPhotos([])
       setForm({
         name: '', manufacturer: '', partNumber: '',
         category: 'Engine', installDate: new Date().toISOString().split('T')[0], notes: ''
@@ -134,7 +153,7 @@ export default function Parts({ userId }) {
             color: '#fff', padding: '7px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer'
           }}>{importing ? '...' : '⬆ CSV'}</button>
           <input ref={csvRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={importParts} />
-          <button onClick={() => setShowForm(!showForm)} style={{
+          <button onClick={() => { setShowForm(!showForm); setPendingPhotos([]) }} style={{
             background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
             color: '#fff', padding: '7px 14px', borderRadius: '20px', fontSize: '13px'
           }}>
@@ -174,12 +193,37 @@ export default function Parts({ userId }) {
             <div style={{ fontSize: '11px', color: '#888780', marginBottom: '4px' }}>Notes</div>
             <textarea style={{ ...inp, minHeight: '60px', resize: 'vertical' }} placeholder="Compatible models, where sourced, specs..." value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
           </div>
+          <div>
+            <div style={{ fontSize: '11px', color: '#888780', marginBottom: '8px' }}>Photos</div>
+            {pendingPhotos.length > 0 && (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                {pendingPhotos.map((p, i) => (
+                  <div key={i} style={{ position: 'relative', width: '72px', height: '72px' }}>
+                    <img src={p.preview} alt="" style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '8px' }} />
+                    <button onClick={() => removePhoto(i)} style={{
+                      position: 'absolute', top: '-6px', right: '-6px',
+                      width: '20px', height: '20px', borderRadius: '50%',
+                      background: '#A32D2D', color: '#fff', border: 'none',
+                      fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={onFilesSelected} />
+            <button onClick={() => fileRef.current.click()} style={{
+              padding: '8px 14px', borderRadius: '8px', background: '#f5f5f3',
+              border: '0.5px solid rgba(0,0,0,0.2)', fontSize: '13px', color: '#5f5e5a', cursor: 'pointer'
+            }}>
+              + Add photos
+            </button>
+          </div>
           <button onClick={savePart} disabled={saving} style={{
             padding: '12px', borderRadius: '10px', background: '#0c2a4a',
             color: '#fff', border: 'none', fontSize: '14px', fontWeight: '500',
             opacity: saving ? 0.7 : 1
           }}>
-            {saving ? 'Saving...' : 'Add to library'}
+            {saving ? 'Uploading...' : 'Add to library'}
           </button>
         </div>
       )}
@@ -239,6 +283,13 @@ export default function Parts({ userId }) {
                         </div>
                         {part.notes && (
                           <div style={{ fontSize: '11px', color: '#888780', marginTop: '6px', fontStyle: 'italic' }}>{part.notes}</div>
+                        )}
+                        {part.photos && part.photos.length > 0 && (
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
+                            {part.photos.map((url, i) => (
+                              <img key={i} src={url} alt="" style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '8px' }} />
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>
