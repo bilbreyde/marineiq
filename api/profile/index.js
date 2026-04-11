@@ -32,12 +32,23 @@ module.exports = async function (context, req) {
     }
 
     if (action === 'saveProfile') {
+      // Read the existing document first so auth fields (password, authType, createdAt)
+      // are preserved. A blind upsert would overwrite and wipe the password hash.
+      let existing = {}
+      try {
+        const { resource } = await container.item(userId, userId).read()
+        if (resource) existing = resource
+      } catch (e) {
+        if (e.code !== 404) throw e
+      }
+
       const profile = {
+        ...existing,          // ← preserves password, authType, createdAt, etc.
         id: userId,
         userId,
-        name: req.body.name || '',
-        email: req.body.email || '',
-        provider: req.body.provider || '',
+        name: req.body.name || existing.name || '',
+        email: req.body.email || existing.email || '',
+        provider: req.body.provider || existing.provider || '',
         vesselName: req.body.vesselName || '',
         vesselType: req.body.vesselType || 'Sailboat',
         make: req.body.make || '',

@@ -1,16 +1,32 @@
-const BASE = 'https://func-marineiq-prod.azurewebsites.net/api'
-const KEY = import.meta.env.VITE_API_KEY || ''
-const TOKEN_KEY = 'marineiq_token'
+/**
+ * API client.
+ *
+ * Every request is enriched with callerEmail and callerName from the cached
+ * user object so backend functions that need the caller's display name or
+ * email (membership invites, admin checks, etc.) don't need a separate lookup.
+ *
+ * Authorization is provided by the Azure Function key (?code=…) and, when
+ * called through the SWA proxy, by the x-ms-client-principal header.
+ */
+
+const BASE      = 'https://func-marineiq-prod.azurewebsites.net/api'
+const KEY       = import.meta.env.VITE_API_KEY || ''
+const USER_KEY  = 'marineiq_user'
+
+function storedUser() {
+  try { return JSON.parse(localStorage.getItem(USER_KEY) || '{}') } catch { return {} }
+}
 
 export async function apiPost(endpoint, body) {
-  const token = localStorage.getItem(TOKEN_KEY) || ''
+  const u = storedUser()
   const res = await fetch(`${BASE}/${endpoint}?code=${KEY}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify(body)
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      callerEmail: u.email || '',
+      callerName:  u.name  || '',
+      ...body,
+    })
   })
   return res.json()
 }

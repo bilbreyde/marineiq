@@ -27,6 +27,7 @@ function Field({ label, children }) {
 
 export default function ProfileSetup({ user, onComplete }) {
   const [saving, setSaving] = useState(false)
+  const [displayName, setDisplayName] = useState(user.name || '')
   const [form, setForm] = useState({
     vesselName: '',
     vesselType: 'Sailboat',
@@ -54,7 +55,7 @@ export default function ProfileSetup({ user, onComplete }) {
       await apiPost('profile', {
         action: 'saveProfile',
         userId: user.userId,
-        name: user.name,
+        name: displayName || user.name,
         email: user.email || '',
         provider: user.provider,
         ...form
@@ -72,14 +73,23 @@ export default function ProfileSetup({ user, onComplete }) {
       </div>
 
       <div style={{ padding: '16px', maxWidth: '600px', margin: '0 auto' }}>
-        <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid rgba(0,0,0,0.1)', padding: '14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#185FA5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '600', color: '#fff', flexShrink: 0 }}>
-            {user.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
+        <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid rgba(0,0,0,0.1)', padding: '14px', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#185FA5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '600', color: '#fff', flexShrink: 0 }}>
+              {(displayName || user.email || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <div style={{ fontSize: '12px', color: '#888780' }}>Signed in via {user.provider}</div>
+              <div style={{ fontSize: '11px', color: '#888780', marginTop: '1px' }}>{user.email}</div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: '14px', fontWeight: '500' }}>{user.name}</div>
-            <div style={{ fontSize: '11px', color: '#888780', marginTop: '2px' }}>Signed in via {user.provider}</div>
-          </div>
+          <div style={{ fontSize: '11px', color: '#888780', marginBottom: '4px' }}>Your display name</div>
+          <input
+            style={inp}
+            placeholder="Don Bilbrey"
+            value={displayName}
+            onChange={e => setDisplayName(e.target.value)}
+          />
         </div>
 
         <Section title="Vessel identity">
