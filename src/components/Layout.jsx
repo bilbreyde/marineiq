@@ -2,22 +2,18 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useVessel } from '../contexts/VesselContext'
 
-const ADMIN_EMAIL = 'don.bilbrey@gmail.com'
-
-const baseNavItems = [
+const navItems = [
   { path: '/', label: 'Home', icon: '⚓' },
   { path: '/logbook', label: 'Logbook', icon: '📓' },
   { path: '/quiz', label: 'Train', icon: '📋' },
   { path: '/chat', label: 'Captain', icon: '🧭' },
   { path: '/maintenance', label: 'Maintenance', icon: '🔧' },
+  { path: '/admin', label: 'Fleet', icon: '🌊' },
   { path: '/profile', label: 'Profile', icon: '👤' },
 ]
 
-function getNavItems(user) {
-  if (user?.email === ADMIN_EMAIL) {
-    return [...baseNavItems, { path: '/admin', label: 'Admin', icon: '🛡' }]
-  }
-  return baseNavItems
+function getNavItems() {
+  return navItems
 }
 
 export default function Layout({ children, user, logout }) {
@@ -129,7 +125,7 @@ function MobileVesselBanner() {
 
 function DesktopSidebar({ user, logout }) {
   const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'
-  const navItems = getNavItems(user)
+  const navItems = getNavItems()
 
   return (
     <aside style={{
@@ -186,7 +182,7 @@ function DesktopSidebar({ user, logout }) {
 }
 
 function MobileNav({ user }) {
-  const navItems = getNavItems(user)
+  const navItems = getNavItems()
   return (
     <nav className="mobile-nav" style={{
       position: 'fixed', bottom: 0, left: 0, right: 0,
