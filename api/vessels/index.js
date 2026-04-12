@@ -358,6 +358,47 @@ module.exports = async function (context, req) {
       return
     }
 
+    // ── msg:sendToVessel ─────────────────────────────────────────────────────
+    // Sends a message to the vessel group chat. Any active crew member can post.
+    if (action === 'msg:sendToVessel') {
+      const { vesselId: targetVesselId, text } = req.body
+      if (!targetVesselId || !text || !text.trim()) { err(context, 400, 'vesselId and text are required'); return }
+
+      const mem = await getMembership(targetVesselId, userId)
+      if (!mem || mem.status !== 'active') { err(context, 403, 'Not a member of this vessel'); return }
+
+      const msgs = database.container('messages')
+      const convId = `vessel_${targetVesselId}`
+      const msgId = `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const doc = {
+        id: msgId, conversationId: convId,
+        fromUserId: userId, fromUserName: callerName || '',
+        vesselId: targetVesselId, type: 'vessel',
+        text: text.trim(), sentAt: new Date().toISOString()
+      }
+      await msgs.items.create(doc)
+      context.res = { status: 201, headers: CORS, body: { success: true, message: doc } }
+      return
+    }
+
+    // ── msg:getVesselThread ───────────────────────────────────────────────────
+    if (action === 'msg:getVesselThread') {
+      const { vesselId: targetVesselId } = req.body
+      if (!targetVesselId) { err(context, 400, 'vesselId is required'); return }
+
+      const mem = await getMembership(targetVesselId, userId)
+      if (!mem || mem.status !== 'active') { err(context, 403, 'Not a member of this vessel'); return }
+
+      const msgs = database.container('messages')
+      const convId = `vessel_${targetVesselId}`
+      const { resources } = await msgs.items.query({
+        query: 'SELECT * FROM c WHERE c.conversationId = @convId ORDER BY c.sentAt ASC',
+        parameters: [{ name: '@convId', value: convId }]
+      }).fetchAll()
+      context.res = { status: 200, headers: CORS, body: { messages: resources } }
+      return
+    }
+
     // ── msg:send ──────────────────────────────────────────────────────────────
     if (action === 'msg:send') {
       const { toUserId, toUserName, text } = req.body

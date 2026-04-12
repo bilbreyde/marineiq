@@ -78,7 +78,7 @@ export default function App() {
           <Route path="/logbook" element={<Logbook userId={user.userId} />} />
           <Route path="/maintenance" element={<Maintenance userId={user.userId} />} />
           <Route path="/profile" element={<Profile user={user} onUpdate={setProfile} />} />
-          <Route path="/vessel" element={<VesselManage />} />
+          <Route path="/vessel" element={<VesselManage user={user} />} />
           <Route path="/admin" element={<Admin user={user} />} />
           <Route path="/messages" element={<Messages user={user} onRead={() => {
             apiPost('vessels', { action: 'msg:unreadCount' })

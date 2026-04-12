@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useVessel } from '../contexts/VesselContext'
 import { apiPost } from '../api'
 
@@ -9,8 +10,9 @@ const ROLE_COLORS = {
   crew:       { bg: '#EAF3DE', text: '#27500A' },
 }
 
-export default function VesselManage() {
+export default function VesselManage({ user }) {
   const { vessel, vessels, role, loading: vesselLoading, selectVessel, refresh } = useVessel()
+  const currentUserId = user?.userId
   const [tab, setTab] = useState('members')
 
   if (vesselLoading) return <Loading text="Loading vessel..." />
@@ -52,7 +54,7 @@ export default function VesselManage() {
       </div>
 
       <div style={{ padding: '16px', maxWidth: '600px', margin: '0 auto' }}>
-        {tab === 'members'   && <MembersTab vessel={vessel} role={role} refresh={refresh} />}
+        {tab === 'members'   && <MembersTab vessel={vessel} role={role} refresh={refresh} currentUserId={currentUserId} />}
         {tab === 'invites'   && <InvitesTab vessel={vessel} role={role} />}
         {tab === 'requests'  && <RequestsTab vessel={vessel} role={role} />}
         {tab === 'settings'  && <SettingsTab vessel={vessel} refresh={refresh} />}
@@ -64,7 +66,8 @@ export default function VesselManage() {
 
 // ─── Members ─────────────────────────────────────────────────────────────────
 
-function MembersTab({ vessel, role, refresh }) {
+function MembersTab({ vessel, role, refresh, currentUserId }) {
+  const navigate = useNavigate()
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(null)
@@ -99,16 +102,55 @@ function MembersTab({ vessel, role, refresh }) {
     finally { setWorking(null) }
   }
 
+  function msgMember(m) {
+    navigate(`/messages?to=${encodeURIComponent(m.userId)}&name=${encodeURIComponent(m.userName || m.userEmail)}`)
+  }
+
+  function msgCrew() {
+    navigate(`/messages?vessel=${encodeURIComponent(vessel.id)}&vesselName=${encodeURIComponent(vessel.name)}`)
+  }
+
   if (loading) return <Loading text="Loading members..." />
+
+  const captain = members.find(m => m.role === 'captain')
+  const isCaptain = role === 'captain'
+  const canManage = role === 'captain' || role === 'first_mate'
 
   return (
     <div>
-      <div style={{ fontSize: '13px', color: '#555', marginBottom: '14px' }}>
-        {members.length} {members.length === 1 ? 'member' : 'members'} aboard
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+        <div style={{ fontSize: '13px', color: '#555' }}>
+          {members.length} {members.length === 1 ? 'member' : 'members'} aboard
+        </div>
+        {members.length > 1 && (
+          <button onClick={msgCrew} style={{
+            background: '#0c2a4a', color: '#fff', border: 'none', borderRadius: '8px',
+            padding: '7px 14px', fontSize: '12px', fontWeight: '500', cursor: 'pointer', fontFamily: 'inherit'
+          }}>
+            💬 Crew chat
+          </button>
+        )}
       </div>
+
+      {/* Message captain shortcut for crew/first_mate */}
+      {!isCaptain && captain && captain.userId !== currentUserId && (
+        <button onClick={() => msgMember(captain)} style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '10px 14px', borderRadius: '10px', border: '1px solid #185FA5',
+          background: '#E6F1FB', marginBottom: '12px', cursor: 'pointer', textAlign: 'left'
+        }}>
+          <span style={{ fontSize: '18px' }}>🧑‍✈️</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '13px', fontWeight: '500', color: '#0c2a4a' }}>Message your captain</div>
+            <div style={{ fontSize: '11px', color: '#555' }}>{captain.userName || captain.userEmail}</div>
+          </div>
+          <span style={{ fontSize: '14px', color: '#185FA5' }}>→</span>
+        </button>
+      )}
+
       {members.map(m => (
         <div key={m.id} style={{
-          display: 'flex', alignItems: 'center', gap: '12px',
+          display: 'flex', alignItems: 'center', gap: '10px',
           padding: '12px', borderRadius: '10px', border: '0.5px solid rgba(0,0,0,0.1)',
           background: '#fff', marginBottom: '8px'
         }}>
@@ -124,14 +166,22 @@ function MembersTab({ vessel, role, refresh }) {
             <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>{m.userEmail}</div>
           </div>
           <RoleBadge role={m.role} />
-          {role === 'captain' && m.role !== 'captain' && (
+          {m.userId !== currentUserId && (
+            <button onClick={() => msgMember(m)} title="Send message" style={{
+              background: 'none', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: '6px',
+              padding: '5px 8px', cursor: 'pointer', fontSize: '14px', color: '#555', flexShrink: 0
+            }}>
+              💬
+            </button>
+          )}
+          {canManage && m.role !== 'captain' && m.userId !== currentUserId && (
             <div style={{ display: 'flex', gap: '4px' }}>
-              {m.role === 'crew' && (
+              {isCaptain && m.role === 'crew' && (
                 <SmallButton disabled={working === m.userId} onClick={() => changeRole(m.userId, 'first_mate')}>
                   Promote
                 </SmallButton>
               )}
-              {m.role === 'first_mate' && (
+              {isCaptain && m.role === 'first_mate' && (
                 <SmallButton disabled={working === m.userId} onClick={() => changeRole(m.userId, 'crew')}>
                   Demote
                 </SmallButton>
