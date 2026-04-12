@@ -63,6 +63,7 @@ module.exports = async function (context, req) {
         mmsi: req.body.mmsi || '',
         callSign: req.body.callSign || '',
         emergencyContact: req.body.emergencyContact || '',
+        crewOnly: req.body.crewOnly === true ? true : (existing.crewOnly || false),
         updatedAt: new Date().toISOString()
       }
 

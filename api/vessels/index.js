@@ -264,6 +264,12 @@ module.exports = async function (context, req) {
         profile = resource
       } catch (e) {}
 
+      // Crew-only users opted out of vessel creation during onboarding
+      if (profile?.crewOnly === true) {
+        context.res = { status: 200, headers: CORS, body: { migrated: false, crewOnly: true } }
+        return
+      }
+
       const vesselName = profile?.vesselName || `${callerName}'s Vessel`
       const vesselId = `vessel-${Date.now()}-${Math.random().toString(36).slice(2)}`
 
