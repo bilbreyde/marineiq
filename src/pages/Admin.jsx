@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { apiPost } from '../api'
 
 const VESSEL_TYPES = ['All types', 'Sailboat', 'Powerboat', 'Catamaran', 'Trawler', 'Center console', 'Other']
 
 export default function Admin({ user }) {
+  const navigate = useNavigate()
   const [vessels, setVessels] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -171,6 +173,18 @@ export default function Admin({ user }) {
                               <span style={{ fontWeight: '500', fontFamily: r.label === 'Hull ID (HIN)' ? 'monospace' : 'inherit' }}>{r.val}</span>
                             </div>
                           ))}
+                          {v.captainId && v.captainId !== user?.userId && (
+                            <button
+                              onClick={() => navigate(`/messages?to=${encodeURIComponent(v.captainId)}&name=${encodeURIComponent(v.captainName || 'Sailor')}`)}
+                              style={{
+                                marginTop: '4px', padding: '8px 14px', borderRadius: '8px',
+                                background: '#185FA5', color: '#fff', border: 'none',
+                                fontSize: '12px', fontWeight: '500', cursor: 'pointer',
+                                fontFamily: 'inherit', alignSelf: 'flex-start'
+                              }}>
+                              💬 Message {v.captainName || 'Captain'}
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

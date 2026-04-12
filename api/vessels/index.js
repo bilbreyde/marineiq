@@ -338,6 +338,7 @@ module.exports = async function (context, req) {
           year: v.year || '',
           lengthFt: v.lengthFt || '',
           captainName: captain?.userName || '',
+          captainId: captain?.userId || '',
           crewCount: crew.length
         }
       })
