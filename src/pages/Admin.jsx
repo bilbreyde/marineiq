@@ -18,7 +18,7 @@ export default function Admin({ user }) {
     setLoading(true)
     setError(null)
     try {
-      const data = await apiPost('admin', { action: 'searchVessels' })
+      const data = await apiPost('vessels', { action: 'searchFleet' })
       if (data.error) throw new Error(data.error)
       setVessels(data.vessels || [])
     } catch (e) {

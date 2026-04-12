@@ -300,6 +300,52 @@ module.exports = async function (context, req) {
       return
     }
 
+    // ── searchFleet ────────────────────────────────────────────────────────────
+    // Returns all vessels with captain info for the Fleet discovery page.
+    // Open to any authenticated user.
+    if (action === 'searchFleet') {
+      const { resources: allVessels } = await vessels.items
+        .query('SELECT * FROM c ORDER BY c.createdAt DESC')
+        .fetchAll()
+
+      let allMems = []
+      try {
+        const { resources } = await memberships.items
+          .query("SELECT c.vesselId, c.userId, c.userEmail, c.userName, c.role FROM c WHERE c.status = 'active'")
+          .fetchAll()
+        allMems = resources
+      } catch (e) {
+        context.log.warn('memberships query failed:', e.message)
+      }
+
+      const memByVessel = {}
+      for (const m of allMems) {
+        if (!memByVessel[m.vesselId]) memByVessel[m.vesselId] = []
+        memByVessel[m.vesselId].push(m)
+      }
+
+      const result = allVessels.map(v => {
+        const crew = memByVessel[v.id] || []
+        const captain = crew.find(m => m.role === 'captain')
+        return {
+          id: v.id,
+          name: v.name || '',
+          type: v.type || '',
+          hullId: v.hullId || '',
+          homePort: v.homePort || '',
+          make: v.make || '',
+          model: v.model || '',
+          year: v.year || '',
+          lengthFt: v.lengthFt || '',
+          captainName: captain?.userName || '',
+          crewCount: crew.length
+        }
+      })
+
+      context.res = { status: 200, headers: CORS, body: { vessels: result } }
+      return
+    }
+
     err(context, 400, 'Unknown action')
   } catch (e) {
     if (e.status) { err(context, e.status, e.message); return }
