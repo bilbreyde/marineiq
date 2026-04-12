@@ -14,8 +14,13 @@ async function ensureContainers() {
     database.containers.createIfNotExists({ id: 'vesselMemberships', partitionKey: { paths: ['/vesselId'] } }),
     database.containers.createIfNotExists({ id: 'vesselInvites', partitionKey: { paths: ['/vesselId'] } }),
     database.containers.createIfNotExists({ id: 'vesselJoinRequests', partitionKey: { paths: ['/vesselId'] } }),
+    database.containers.createIfNotExists({ id: 'messages', partitionKey: { paths: ['/conversationId'] } }),
   ])
   ready = true
+}
+
+function conversationId(a, b) {
+  return [a, b].sort().join('_')
 }
 
 module.exports = async function (context, req) {
@@ -344,6 +349,94 @@ module.exports = async function (context, req) {
       })
 
       context.res = { status: 200, headers: CORS, body: { vessels: result } }
+      return
+    }
+
+    // ── msg:send ──────────────────────────────────────────────────────────────
+    if (action === 'msg:send') {
+      const { toUserId, toUserName, text } = req.body
+      if (!toUserId || !text || !text.trim()) { err(context, 400, 'toUserId and text are required'); return }
+      if (toUserId === userId) { err(context, 400, 'Cannot message yourself'); return }
+
+      const msgs = database.container('messages')
+      const convId = conversationId(userId, toUserId)
+      const msgId = `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const doc = {
+        id: msgId, conversationId: convId,
+        fromUserId: userId, fromUserName: callerName || '',
+        toUserId, toUserName: toUserName || '',
+        text: text.trim(), sentAt: new Date().toISOString(), readAt: null
+      }
+      await msgs.items.create(doc)
+      context.res = { status: 201, headers: CORS, body: { success: true, message: doc } }
+      return
+    }
+
+    // ── msg:getConversations ───────────────────────────────────────────────────
+    if (action === 'msg:getConversations') {
+      const msgs = database.container('messages')
+      const { resources } = await msgs.items.query({
+        query: 'SELECT * FROM c WHERE c.fromUserId = @uid OR c.toUserId = @uid ORDER BY c.sentAt DESC',
+        parameters: [{ name: '@uid', value: userId }]
+      }).fetchAll()
+
+      const convMap = {}
+      for (const m of resources) {
+        if (!convMap[m.conversationId]) {
+          const otherId = m.fromUserId === userId ? m.toUserId : m.fromUserId
+          const otherName = m.fromUserId === userId ? m.toUserName : m.fromUserName
+          convMap[m.conversationId] = {
+            conversationId: m.conversationId,
+            otherUserId: otherId, otherUserName: otherName,
+            lastMessage: m.text, lastSentAt: m.sentAt, unread: 0
+          }
+        }
+        if (m.toUserId === userId && !m.readAt) convMap[m.conversationId].unread++
+      }
+
+      const conversations = Object.values(convMap).sort((a, b) => b.lastSentAt.localeCompare(a.lastSentAt))
+      context.res = { status: 200, headers: CORS, body: { conversations } }
+      return
+    }
+
+    // ── msg:getThread ─────────────────────────────────────────────────────────
+    if (action === 'msg:getThread') {
+      const { otherUserId } = req.body
+      if (!otherUserId) { err(context, 400, 'otherUserId is required'); return }
+      const msgs = database.container('messages')
+      const convId = conversationId(userId, otherUserId)
+      const { resources } = await msgs.items.query({
+        query: 'SELECT * FROM c WHERE c.conversationId = @convId ORDER BY c.sentAt ASC',
+        parameters: [{ name: '@convId', value: convId }]
+      }).fetchAll()
+      context.res = { status: 200, headers: CORS, body: { messages: resources } }
+      return
+    }
+
+    // ── msg:markRead ──────────────────────────────────────────────────────────
+    if (action === 'msg:markRead') {
+      const { otherUserId } = req.body
+      if (!otherUserId) { err(context, 400, 'otherUserId is required'); return }
+      const msgs = database.container('messages')
+      const convId = conversationId(userId, otherUserId)
+      const { resources: unread } = await msgs.items.query({
+        query: 'SELECT * FROM c WHERE c.conversationId = @convId AND c.toUserId = @uid AND IS_NULL(c.readAt)',
+        parameters: [{ name: '@convId', value: convId }, { name: '@uid', value: userId }]
+      }).fetchAll()
+      const now = new Date().toISOString()
+      await Promise.all(unread.map(m => msgs.items.upsert({ ...m, readAt: now })))
+      context.res = { status: 200, headers: CORS, body: { marked: unread.length } }
+      return
+    }
+
+    // ── msg:unreadCount ───────────────────────────────────────────────────────
+    if (action === 'msg:unreadCount') {
+      const msgs = database.container('messages')
+      const { resources } = await msgs.items.query({
+        query: 'SELECT VALUE COUNT(1) FROM c WHERE c.toUserId = @uid AND IS_NULL(c.readAt)',
+        parameters: [{ name: '@uid', value: userId }]
+      }).fetchAll()
+      context.res = { status: 200, headers: CORS, body: { count: resources[0] || 0 } }
       return
     }
 

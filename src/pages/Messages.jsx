@@ -35,7 +35,7 @@ export default function Messages({ user, onRead }) {
 
   async function loadConversations() {
     try {
-      const data = await apiPost('messages', { action: 'getConversations' })
+      const data = await apiPost('vessels', { action: 'msg:getConversations' })
       if (data.error) throw new Error(data.error)
       setConversations(data.conversations || [])
     } catch (e) {
@@ -48,11 +48,11 @@ export default function Messages({ user, onRead }) {
   async function loadThread() {
     setThread([])
     try {
-      const data = await apiPost('messages', { action: 'getThread', otherUserId: activeConv.otherUserId })
+      const data = await apiPost('vessels', { action: 'msg:getThread', otherUserId: activeConv.otherUserId })
       if (data.error) throw new Error(data.error)
       setThread(data.messages || [])
       // Mark as read
-      await apiPost('messages', { action: 'markRead', otherUserId: activeConv.otherUserId })
+      await apiPost('vessels', { action: 'msg:markRead', otherUserId: activeConv.otherUserId })
       // Update unread count in conversation list
       setConversations(prev => prev.map(c =>
         c.otherUserId === activeConv.otherUserId ? { ...c, unread: 0 } : c
@@ -68,8 +68,8 @@ export default function Messages({ user, onRead }) {
     if (!draft.trim() || !activeConv || sending) return
     setSending(true)
     try {
-      const data = await apiPost('messages', {
-        action: 'send',
+      const data = await apiPost('vessels', {
+        action: 'msg:send',
         toUserId: activeConv.otherUserId,
         toUserName: activeConv.otherUserName,
         text: draft.trim()

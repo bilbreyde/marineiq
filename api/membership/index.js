@@ -339,6 +339,46 @@ module.exports = async function (context, req) {
       return
     }
 
+    // ── notifications ─────────────────────────────────────────────────────────
+    // Returns count of pending invites for this user + pending join requests
+    // on vessels where they are captain or first_mate.
+    if (action === 'notifications') {
+      // Pending invites addressed to this user's email
+      let pendingInvites = 0
+      try {
+        const { resources: myInvites } = await invites.items.query({
+          query: 'SELECT VALUE COUNT(1) FROM c WHERE c.email = @email AND c.status = "pending"',
+          parameters: [{ name: '@email', value: callerEmail.toLowerCase() }]
+        }).fetchAll()
+        pendingInvites = myInvites[0] || 0
+      } catch (e) { context.log.warn('invite count failed:', e.message) }
+
+      // Vessels where this user is captain or first_mate
+      let pendingRequests = 0
+      try {
+        const { resources: myMems } = await memberships.items.query({
+          query: 'SELECT c.vesselId FROM c WHERE c.userId = @uid AND c.status = "active" AND (c.role = "captain" OR c.role = "first_mate")',
+          parameters: [{ name: '@uid', value: userId }]
+        }).fetchAll()
+
+        if (myMems.length > 0) {
+          const counts = await Promise.all(myMems.map(async m => {
+            try {
+              const { resources } = await requests.items.query({
+                query: 'SELECT VALUE COUNT(1) FROM c WHERE c.vesselId = @vid AND c.status = "pending"',
+                parameters: [{ name: '@vid', value: m.vesselId }]
+              }, { partitionKey: m.vesselId }).fetchAll()
+              return resources[0] || 0
+            } catch { return 0 }
+          }))
+          pendingRequests = counts.reduce((a, b) => a + b, 0)
+        }
+      } catch (e) { context.log.warn('request count failed:', e.message) }
+
+      context.res = { status: 200, headers: CORS, body: { pendingInvites, pendingRequests } }
+      return
+    }
+
     err(context, 400, 'Unknown action')
   } catch (e) {
     if (e.status) { err(context, e.status, e.message); return }

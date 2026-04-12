@@ -9,7 +9,8 @@ const navItems = [
   { path: '/chat', label: 'Captain', icon: '🧭' },
   { path: '/maintenance', label: 'Maintenance', icon: '🔧' },
   { path: '/admin', label: 'Fleet', icon: '🌊' },
-  { path: '/messages', label: 'Messages', icon: '💬' },
+  { path: '/vessel', label: 'Crew', icon: '🧑‍✈️', badge: 'crew' },
+  { path: '/messages', label: 'Messages', icon: '💬', badge: 'messages' },
   { path: '/profile', label: 'Profile', icon: '👤' },
 ]
 
@@ -17,17 +18,18 @@ function getNavItems() {
   return navItems
 }
 
-export default function Layout({ children, user, logout, unreadMessages = 0 }) {
+export default function Layout({ children, user, logout, unreadMessages = 0, crewNotifications = 0 }) {
+  const badges = { messages: unreadMessages, crew: crewNotifications }
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <DesktopSidebar user={user} logout={logout} unreadMessages={unreadMessages} />
+      <DesktopSidebar user={user} logout={logout} badges={badges} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', maxWidth: '100%', overflowX: 'hidden' }}>
         <MobileVesselBanner />
         <main style={{ flex: 1, paddingBottom: '80px' }}>
           {children}
         </main>
       </div>
-      <MobileNav user={user} unreadMessages={unreadMessages} />
+      <MobileNav user={user} badges={badges} />
     </div>
   )
 }
@@ -124,7 +126,7 @@ function MobileVesselBanner() {
   )
 }
 
-function DesktopSidebar({ user, logout, unreadMessages }) {
+function DesktopSidebar({ user, logout, badges = {} }) {
   const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'
   const navItems = getNavItems()
 
@@ -157,13 +159,13 @@ function DesktopSidebar({ user, logout, unreadMessages }) {
           })}>
             <span style={{ fontSize: '16px', position: 'relative' }}>
               {item.icon}
-              {item.path === '/messages' && unreadMessages > 0 && (
+              {item.badge && badges[item.badge] > 0 && (
                 <span style={{
                   position: 'absolute', top: '-4px', right: '-6px',
                   background: '#e74c3c', color: '#fff', borderRadius: '10px',
                   fontSize: '8px', fontWeight: '700', padding: '1px 4px',
                   minWidth: '14px', textAlign: 'center', lineHeight: '12px'
-                }}>{unreadMessages > 99 ? '99+' : unreadMessages}</span>
+                }}>{badges[item.badge] > 99 ? '99+' : badges[item.badge]}</span>
               )}
             </span>
             {item.label}
@@ -192,7 +194,7 @@ function DesktopSidebar({ user, logout, unreadMessages }) {
   )
 }
 
-function MobileNav({ user, unreadMessages }) {
+function MobileNav({ user, badges = {} }) {
   const navItems = getNavItems()
   return (
     <nav className="mobile-nav" style={{
@@ -208,13 +210,13 @@ function MobileNav({ user, unreadMessages }) {
         })}>
           <span style={{ fontSize: '20px', position: 'relative', display: 'inline-block' }}>
             {item.icon}
-            {item.path === '/messages' && unreadMessages > 0 && (
+            {item.badge && badges[item.badge] > 0 && (
               <span style={{
                 position: 'absolute', top: '-2px', right: '-4px',
                 background: '#e74c3c', color: '#fff', borderRadius: '10px',
                 fontSize: '8px', fontWeight: '700', padding: '1px 4px',
                 minWidth: '14px', textAlign: 'center', lineHeight: '12px'
-              }}>{unreadMessages > 99 ? '99+' : unreadMessages}</span>
+              }}>{badges[item.badge] > 99 ? '99+' : badges[item.badge]}</span>
             )}
           </span>
           {item.label}
